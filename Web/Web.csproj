@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EtpApp.Business\EtpApp.Business.csproj" />
+    <ProjectReference Include="..\EtpApp.Model\EtpApp.Model.csproj" />
+    <ProjectReference Include="..\EtpApp.Utilities\EtpApp.Utilities.csproj" />
+  </ItemGroup>
+</Project>
