@@ -6,17 +6,15 @@ public class EnquiryDto
 
     public string EnquiryNo { get; set; } = string.Empty;
 
-    public DateTime EnquiryDate { get; set; } = DateTime.UtcNow.Date;
-
-    public string Title { get; set; } = string.Empty;
-
     public string ClientName { get; set; } = string.Empty;
 
     public string? ContactPerson { get; set; }
 
-    public string? ContactEmail { get; set; }
+    public string? Email { get; set; }
 
-    public string? ContactPhone { get; set; }
+    public string? Phone { get; set; }
+
+    public string ProjectName { get; set; } = string.Empty;
 
     public int PlantType { get; set; }
 
@@ -26,9 +24,11 @@ public class EnquiryDto
 
     public string? SiteLocation { get; set; }
 
-    public string? Remarks { get; set; }
-
     public int Status { get; set; }
 
-    public long? ProjectId { get; set; }
+    public string? Remarks { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public List<EnquiryStreamDto> Streams { get; set; } = new();
 }

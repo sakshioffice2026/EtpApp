@@ -23,8 +23,7 @@ public class EnquiryRepository : GenericRepository<Enquiry>, IEnquiryRepository
             query = query.Where(x => x.Status == status.Value);
 
         return await query
-            .OrderByDescending(x => x.EnquiryDate)
-            .ThenByDescending(x => x.Id)
+            .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -33,17 +32,29 @@ public class EnquiryRepository : GenericRepository<Enquiry>, IEnquiryRepository
             .Include(x => x.Streams)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<Enquiry?> GetWithDetailsAsync(long id, CancellationToken cancellationToken = default)
+    public async Task<Enquiry?> GetWithProposalsAsync(long id, CancellationToken cancellationToken = default)
         => await DbSet
             .Include(x => x.Streams)
             .Include(x => x.Proposals)
-            .Include(x => x.Project)
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<string> GenerateEnquiryNoAsync(CancellationToken cancellationToken = default)
+    public async Task<Enquiry?> GetByEnquiryNoAsync(string enquiryNo, CancellationToken cancellationToken = default)
+        => await DbSet
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.EnquiryNo == enquiryNo, cancellationToken);
+
+    public async Task<string> GenerateEnquiryNoAsync(PlantType plantType, CancellationToken cancellationToken = default)
     {
-        var stem = $"ENQ-{DateTime.UtcNow.Year}-";
+        var prefix = plantType switch
+        {
+            PlantType.Etp => "ENQ-ETP",
+            PlantType.Stp => "ENQ-STP",
+            PlantType.Zld => "ENQ-ZLD",
+            _ => "ENQ"
+        };
+
+        var stem = $"{prefix}-{DateTime.UtcNow.Year}-";
 
         var existing = await DbSet
             .IgnoreQueryFilters()
@@ -54,12 +65,34 @@ public class EnquiryRepository : GenericRepository<Enquiry>, IEnquiryRepository
 
         var max = 0;
 
-        foreach (var enquiryNo in existing)
+        foreach (var code in existing)
         {
-            if (int.TryParse(enquiryNo.AsSpan(stem.Length), out var number) && number > max)
+            if (int.TryParse(code.AsSpan(stem.Length), out var number) && number > max)
                 max = number;
         }
 
         return $"{stem}{max + 1:0000}";
+    }
+
+    public async Task ReplaceStreamsAsync(long enquiryId, IEnumerable<EnquiryStream> streams, CancellationToken cancellationToken = default)
+    {
+        var list = streams.ToList();
+
+        await using var transaction = await Context.Database.BeginTransactionAsync(cancellationToken);
+
+        await Context.Set<EnquiryStream>()
+            .IgnoreQueryFilters()
+            .Where(x => x.EnquiryId == enquiryId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        foreach (var stream in list)
+        {
+            stream.Id = 0;
+            stream.EnquiryId = enquiryId;
+        }
+
+        await Context.Set<EnquiryStream>().AddRangeAsync(list, cancellationToken);
+        await Context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 }

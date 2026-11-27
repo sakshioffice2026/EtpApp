@@ -7,10 +7,14 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
+
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
+    public DbSet<EnquiryStream> EnquiryStreams => Set<EnquiryStream>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<WastewaterStream> WastewaterStreams => Set<WastewaterStream>();
     public DbSet<Proposal> Proposals => Set<Proposal>();
+    public DbSet<ProposalLineItem> ProposalLineItems => Set<ProposalLineItem>();
+    public DbSet<ProposalStatusHistory> ProposalStatusHistories => Set<ProposalStatusHistory>();
     public DbSet<TreatmentTrain> TreatmentTrains => Set<TreatmentTrain>();
     public DbSet<UnitOperation> UnitOperations => Set<UnitOperation>();
     public DbSet<EquipmentItem> EquipmentItems => Set<EquipmentItem>();
@@ -22,16 +26,18 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Enquiry>(e =>
         {
             e.HasIndex(x => x.EnquiryNo).IsUnique();
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.PlantType);
             e.Property(x => x.EnquiryNo).HasMaxLength(30);
-            e.Property(x => x.EnquiryDate).HasColumnType("date");
-            e.Property(x => x.Title).HasMaxLength(200);
             e.Property(x => x.ClientName).HasMaxLength(200);
             e.Property(x => x.ContactPerson).HasMaxLength(150);
-            e.Property(x => x.ContactEmail).HasMaxLength(200);
-            e.Property(x => x.ContactPhone).HasMaxLength(30);
+            e.Property(x => x.Email).HasMaxLength(150);
+            e.Property(x => x.Phone).HasMaxLength(30);
+            e.Property(x => x.ProjectName).HasMaxLength(200);
             e.Property(x => x.SiteLocation).HasMaxLength(250);
             e.Property(x => x.Remarks).HasMaxLength(1000);
             e.Property(x => x.PlantType).HasConversion<byte>();
@@ -39,6 +45,25 @@ public class AppDbContext : DbContext
             e.Property(x => x.Status).HasConversion<byte>();
             e.HasQueryFilter(x => !x.IsDeleted);
         });
+
+        modelBuilder.Entity<EnquiryStream>(e =>
+        {
+            e.Property(x => x.StreamName).HasMaxLength(150);
+            e.Property(x => x.FlowM3PerDay).HasColumnName("flow_m3_per_day").HasPrecision(12, 2);
+            e.Property(x => x.CodMgL).HasPrecision(12, 2);
+            e.Property(x => x.BodMgL).HasPrecision(12, 2);
+            e.Property(x => x.TssMgL).HasPrecision(12, 2);
+            e.Property(x => x.TdsMgL).HasPrecision(12, 2);
+            e.Property(x => x.OilGreaseMgL).HasPrecision(12, 2);
+            e.Property(x => x.Ph).HasPrecision(4, 2);
+            e.Property(x => x.TemperatureC).HasPrecision(5, 2);
+            e.HasOne(x => x.Enquiry)
+                .WithMany(p => p.Streams)
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
+
         modelBuilder.Entity<Project>(e =>
         {
             e.HasIndex(x => x.ProjectCode).IsUnique();
@@ -49,15 +74,15 @@ public class AppDbContext : DbContext
             e.Property(x => x.Remarks).HasMaxLength(1000);
             e.Property(x => x.PlantType).HasConversion<byte>();
             e.Property(x => x.IndustryType).HasConversion<byte>();
-            e.HasQueryFilter(x => !x.IsDeleted);
             e.HasOne(x => x.Enquiry)
-                .WithOne(q => q.Project)
-                .HasForeignKey<Project>(x => x.EnquiryId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .WithMany()
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.SourceProposal)
-                .WithOne()
-                .HasForeignKey<Project>(x => x.SourceProposalId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .WithMany()
+                .HasForeignKey(x => x.SourceProposalId)
+                .OnDelete(DeleteBehavior.SetNull);
+            e.HasQueryFilter(x => !x.IsDeleted);
         });
 
         modelBuilder.Entity<WastewaterStream>(e =>
@@ -71,10 +96,6 @@ public class AppDbContext : DbContext
             e.Property(x => x.OilGreaseMgL).HasPrecision(12, 2);
             e.Property(x => x.Ph).HasPrecision(4, 2);
             e.Property(x => x.TemperatureC).HasPrecision(5, 2);
-            e.HasOne(x => x.Enquiry)
-                .WithMany(q => q.Streams)
-                .HasForeignKey(x => x.EnquiryId)
-                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Project)
                 .WithMany(p => p.Streams)
                 .HasForeignKey(x => x.ProjectId)
@@ -93,14 +114,42 @@ public class AppDbContext : DbContext
                 .WithMany(p => p.Proposals)
                 .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
-            e.Property(x => x.ValidUntil).HasColumnType("date");
-            e.Property(x => x.Remarks).HasMaxLength(1000);
             e.HasOne(x => x.Enquiry)
-                .WithMany(q => q.Proposals)
+                .WithMany(p => p.Proposals)
                 .HasForeignKey(x => x.EnquiryId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<ProposalLineItem>(e =>
+        {
+            e.ToTable("proposal_line_items");
+            e.HasIndex(x => x.ProposalId);
+            e.HasIndex(x => x.Category);
+            e.Property(x => x.Category).HasConversion<byte>();
+            e.Property(x => x.Description).HasMaxLength(300);
+            e.Property(x => x.Unit).HasMaxLength(20);
+            e.Property(x => x.Quantity).HasPrecision(14, 3);
+            e.Property(x => x.Rate).HasPrecision(14, 2);
+            e.Property(x => x.Amount).HasPrecision(18, 2).ValueGeneratedOnAddOrUpdate();
+            e.HasOne(x => x.Proposal)
+                .WithMany(p => p.LineItems)
+                .HasForeignKey(x => x.ProposalId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProposalStatusHistory>(e =>
+        {
+            e.ToTable("proposal_status_history");
+            e.HasIndex(x => x.ProposalId);
+            e.Property(x => x.FromStatus).HasConversion<byte?>();
+            e.Property(x => x.ToStatus).HasConversion<byte>();
+            e.Property(x => x.ChangedBy).HasMaxLength(100);
+            e.Property(x => x.Remarks).HasMaxLength(500);
+            e.HasOne(x => x.Proposal)
+                .WithMany(p => p.StatusHistory)
+                .HasForeignKey(x => x.ProposalId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         modelBuilder.Entity<TreatmentTrain>(e =>
         {
@@ -135,6 +184,8 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<BoqLine>(e =>
         {
+            e.HasIndex(x => x.Category);
+            e.Property(x => x.Category).HasConversion<byte>();
             e.Property(x => x.TagNo).HasMaxLength(30);
             e.Property(x => x.ItemDescription).HasMaxLength(300);
             e.Property(x => x.Unit).HasMaxLength(20);

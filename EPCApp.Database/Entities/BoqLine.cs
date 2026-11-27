@@ -1,5 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
-
+using EPCApp.Database.Enums;
 
 namespace EPCApp.Database.Entities;
 
@@ -8,6 +8,8 @@ public class BoqLine : BaseEntity
     public long ProposalId { get; set; }
 
     public long? EquipmentItemId { get; set; }
+
+    public BoqCategory Category { get; set; } = BoqCategory.Civil;
 
     public string? TagNo { get; set; }
 

@@ -1,4 +1,5 @@
-﻿using EPCApp.Business.Contracts;
+using System.Text.Json;
+using EPCApp.Business.Contracts;
 using EPCApp.Business.Resolvers;
 using EPCApp.Database.Entities;
 using EPCApp.Database.Enums;
@@ -7,69 +8,384 @@ using EPCApp.Engine.Models;
 using EPCApp.Model.DTOs;
 using EPCApp.Model.ViewModel;
 using EPCApp.Repositories.Contracts;
-using System.Text.Json;
 
 namespace EPCApp.Business.Services;
 
 public sealed class ProposalService : IProposalService
 {
-    private readonly IEnquiryRepository _enquiries;
     private readonly IProjectRepository _projects;
+    private readonly IEnquiryRepository _enquiries;
     private readonly IProposalRepository _proposals;
     private readonly RulePackResolver _resolver;
 
     public ProposalService(
-        IEnquiryRepository enquiries,
         IProjectRepository projects,
+        IEnquiryRepository enquiries,
         IProposalRepository proposals,
         RulePackResolver resolver)
     {
-        _enquiries = enquiries;
         _projects = projects;
+        _enquiries = enquiries;
         _proposals = proposals;
         _resolver = resolver;
     }
 
-    public async Task<ProposalDto> CalculateAsync(long enquiryId, CancellationToken cancellationToken = default)
+    private sealed record StreamValues(
+        decimal Flow,
+        decimal Cod,
+        decimal Bod,
+        decimal Tss,
+        decimal Tds,
+        decimal Oil,
+        decimal Ph,
+        decimal Temperature);
+
+    public async Task<ProposalDto> CalculateAsync(long projectId, CancellationToken cancellationToken = default)
     {
-        var enquiry = await _enquiries.GetWithDetailsAsync(enquiryId, cancellationToken)
+        var project = await _projects.GetWithStreamsAsync(projectId, cancellationToken)
+            ?? throw new InvalidOperationException($"Project {projectId} not found.");
+
+        var values = project.Streams
+            .Where(x => !x.IsDeleted)
+            .Select(x => new StreamValues(x.FlowM3PerDay, x.CodMgL, x.BodMgL, x.TssMgL, x.TdsMgL, x.OilGreaseMgL, x.Ph, x.TemperatureC))
+            .ToList();
+
+        var basis = BuildBasis(project.IndustryType, project.ZldRequired, values);
+
+        var proposal = new Proposal
+        {
+            ProjectId = projectId,
+            ProposalNo = await _proposals.GenerateProposalNoAsync(projectId, cancellationToken),
+            VersionNo = await _proposals.GetNextVersionNoAsync(projectId, cancellationToken)
+        };
+
+        await _proposals.AddAsync(proposal, cancellationToken);
+        await _proposals.SaveChangesAsync(cancellationToken);
+
+        await CalculateIntoAsync(proposal.Id, project.PlantType, basis, cancellationToken);
+
+        return await LoadDtoAsync(proposal.Id, cancellationToken);
+    }
+
+    public async Task<ProposalDto> CreateFromEnquiryAsync(long enquiryId, CancellationToken cancellationToken = default)
+    {
+        var enquiry = await _enquiries.GetWithStreamsAsync(enquiryId, cancellationToken)
             ?? throw new InvalidOperationException($"Enquiry {enquiryId} not found.");
 
-        var streams = enquiry.Streams.Where(x => !x.IsDeleted).ToList();
-        if (streams.Count == 0)
-            throw new InvalidOperationException("Add at least one wastewater stream before calculating.");
-
-        var basis = BuildBasis(enquiry, streams);
-        var pack = _resolver.Resolve(enquiry.PlantType);
-
-        TrainDefinition train;
-        IReadOnlyList<SizedEquipment> sized;
-        IReadOnlyList<BoqLineItem> boq;
-
-        try
-        {
-            train = pack.SelectTrain(basis);
-            sized = pack.Size(basis, train);
-            boq = pack.BuildBoq(sized, new RateSheet());
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            throw new InvalidOperationException($"Check the stream values. Invalid input: {ex.ParamName}.", ex);
-        }
+        var basis = BuildBasis(enquiry.IndustryType, enquiry.ZldRequired, ToValues(enquiry));
 
         var proposal = new Proposal
         {
             EnquiryId = enquiryId,
-            ProjectId = enquiry.Project?.Id,
-            ProposalNo = await _proposals.GenerateProposalNoAsync(enquiryId, cancellationToken),
-            VersionNo = await _proposals.GetNextVersionNoAsync(enquiryId, cancellationToken)
+            ProposalNo = await _proposals.GenerateProposalNoForEnquiryAsync(enquiryId, cancellationToken),
+            VersionNo = await _proposals.GetNextVersionNoByEnquiryAsync(enquiryId, cancellationToken)
         };
-
-        if (enquiry.Status != EnquiryStatus.Won)
-            enquiry.Status = EnquiryStatus.ProposalPrepared;
 
         await _proposals.AddAsync(proposal, cancellationToken);
         await _proposals.SaveChangesAsync(cancellationToken);
+
+        await CalculateIntoAsync(proposal.Id, enquiry.PlantType, basis, cancellationToken);
+
+        if (enquiry.Status is EnquiryStatus.Draft or EnquiryStatus.Submitted)
+        {
+            enquiry.Status = EnquiryStatus.ProposalCreated;
+            await _enquiries.SaveChangesAsync(cancellationToken);
+        }
+
+        return await LoadDtoAsync(proposal.Id, cancellationToken);
+    }
+
+    public async Task<ProposalDto> RecalculateAsync(long proposalId, CancellationToken cancellationToken = default)
+    {
+        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+
+        Require(proposal, "recalculate", ProposalStatus.Draft, ProposalStatus.Calculated);
+
+        if (proposal.EnquiryId.HasValue)
+        {
+            var enquiry = await _enquiries.GetWithStreamsAsync(proposal.EnquiryId.Value, cancellationToken)
+                ?? throw new InvalidOperationException($"Enquiry {proposal.EnquiryId} not found.");
+
+            var basis = BuildBasis(enquiry.IndustryType, enquiry.ZldRequired, ToValues(enquiry));
+            await CalculateIntoAsync(proposal.Id, enquiry.PlantType, basis, cancellationToken);
+        }
+        else if (proposal.ProjectId.HasValue)
+        {
+            var project = await _projects.GetWithStreamsAsync(proposal.ProjectId.Value, cancellationToken)
+                ?? throw new InvalidOperationException($"Project {proposal.ProjectId} not found.");
+
+            var values = project.Streams
+                .Where(x => !x.IsDeleted)
+                .Select(x => new StreamValues(x.FlowM3PerDay, x.CodMgL, x.BodMgL, x.TssMgL, x.TdsMgL, x.OilGreaseMgL, x.Ph, x.TemperatureC))
+                .ToList();
+
+            var basis = BuildBasis(project.IndustryType, project.ZldRequired, values);
+            await CalculateIntoAsync(proposal.Id, project.PlantType, basis, cancellationToken);
+        }
+        else
+        {
+            throw new InvalidOperationException("Proposal has no enquiry or project to calculate from.");
+        }
+
+        return await LoadDtoAsync(proposalId, cancellationToken);
+    }
+
+    public async Task SendAsync(long proposalId, string? remarks = null, CancellationToken cancellationToken = default)
+    {
+        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+
+        Require(proposal, "send", ProposalStatus.Calculated);
+
+        await _proposals.SetStatusAsync(proposalId, ProposalStatus.Submitted, null, remarks ?? "Sent to client", cancellationToken);
+
+        if (proposal.EnquiryId.HasValue)
+        {
+            var enquiry = await _enquiries.GetByIdAsync(proposal.EnquiryId.Value, cancellationToken);
+            if (enquiry is not null && enquiry.Status is EnquiryStatus.Draft)
+            {
+                enquiry.Status = EnquiryStatus.Submitted;
+                await _enquiries.SaveChangesAsync(cancellationToken);
+            }
+        }
+    }
+
+    public async Task<long> AcceptAsync(long proposalId, string? remarks = null, CancellationToken cancellationToken = default)
+    {
+        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+
+        Require(proposal, "accept", ProposalStatus.Submitted);
+
+        if (proposal.ProjectId.HasValue)
+        {
+            await _proposals.SetStatusAsync(proposalId, ProposalStatus.Approved, null, remarks ?? "Accepted", cancellationToken);
+            return proposal.ProjectId.Value;
+        }
+
+        if (!proposal.EnquiryId.HasValue)
+            throw new InvalidOperationException("Proposal has no enquiry to create a project from.");
+
+        var enquiry = await _enquiries.GetWithStreamsAsync(proposal.EnquiryId.Value, cancellationToken)
+            ?? throw new InvalidOperationException($"Enquiry {proposal.EnquiryId} not found.");
+
+        var project = new Project
+        {
+            ProjectCode = await _projects.GenerateProjectCodeAsync(enquiry.PlantType, cancellationToken),
+            Name = enquiry.ProjectName,
+            ClientName = enquiry.ClientName,
+            PlantType = enquiry.PlantType,
+            IndustryType = enquiry.IndustryType,
+            ZldRequired = enquiry.ZldRequired || enquiry.PlantType == PlantType.Zld,
+            SiteLocation = enquiry.SiteLocation,
+            Remarks = enquiry.Remarks,
+            EnquiryId = enquiry.Id,
+            SourceProposalId = proposal.Id
+        };
+
+        foreach (var stream in enquiry.Streams.Where(x => !x.IsDeleted))
+        {
+            project.Streams.Add(new WastewaterStream
+            {
+                StreamName = stream.StreamName,
+                FlowM3PerDay = stream.FlowM3PerDay,
+                CodMgL = stream.CodMgL,
+                BodMgL = stream.BodMgL,
+                TssMgL = stream.TssMgL,
+                TdsMgL = stream.TdsMgL,
+                OilGreaseMgL = stream.OilGreaseMgL,
+                Ph = stream.Ph,
+                TemperatureC = stream.TemperatureC
+            });
+        }
+
+        await _projects.AddAsync(project, cancellationToken);
+        await _projects.SaveChangesAsync(cancellationToken);
+
+        proposal.ProjectId = project.Id;
+        enquiry.Status = EnquiryStatus.Converted;
+
+        await _proposals.SetStatusAsync(proposalId, ProposalStatus.Approved, null, remarks ?? "Accepted", cancellationToken);
+
+        return project.Id;
+    }
+
+    public async Task RejectAsync(long proposalId, string? remarks = null, CancellationToken cancellationToken = default)
+    {
+        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+
+        Require(proposal, "reject", ProposalStatus.Submitted);
+
+        await _proposals.SetStatusAsync(proposalId, ProposalStatus.Rejected, null, remarks ?? "Rejected", cancellationToken);
+    }
+
+    public async Task<ProposalDto> ReviseAsync(long proposalId, string? remarks = null, CancellationToken cancellationToken = default)
+    {
+        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
+            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+
+        Require(proposal, "revise", ProposalStatus.Calculated, ProposalStatus.Submitted, ProposalStatus.Rejected);
+
+        if (!proposal.EnquiryId.HasValue)
+            throw new InvalidOperationException("Only proposals created from an enquiry can be revised.");
+
+        var enquiryId = proposal.EnquiryId.Value;
+
+        var enquiry = await _enquiries.GetWithStreamsAsync(enquiryId, cancellationToken)
+            ?? throw new InvalidOperationException($"Enquiry {enquiryId} not found.");
+
+        var basis = BuildBasis(enquiry.IndustryType, enquiry.ZldRequired, ToValues(enquiry));
+
+        await _proposals.SetStatusAsync(proposalId, ProposalStatus.Revised, null, remarks ?? "Revised", cancellationToken);
+
+        var revision = new Proposal
+        {
+            EnquiryId = enquiryId,
+            ProposalNo = await _proposals.GenerateProposalNoForEnquiryAsync(enquiryId, cancellationToken),
+            VersionNo = await _proposals.GetNextVersionNoByEnquiryAsync(enquiryId, cancellationToken)
+        };
+
+        await _proposals.AddAsync(revision, cancellationToken);
+        await _proposals.SaveChangesAsync(cancellationToken);
+
+        await CalculateIntoAsync(revision.Id, enquiry.PlantType, basis, cancellationToken);
+
+        return await LoadDtoAsync(revision.Id, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ProposalDto>> GetByProjectAsync(long projectId, CancellationToken cancellationToken = default)
+    {
+        var rows = await _proposals.GetByProjectAsync(projectId, cancellationToken);
+        return rows.Select(ToSummaryDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<ProposalDto>> GetByEnquiryAsync(long enquiryId, CancellationToken cancellationToken = default)
+    {
+        var rows = await _proposals.GetByEnquiryAsync(enquiryId, cancellationToken);
+        return rows.Select(ToSummaryDto).ToList();
+    }
+
+    public async Task<ProposalDto?> GetByIdAsync(long proposalId, CancellationToken cancellationToken = default)
+    {
+        var full = await _proposals.GetFullAsync(proposalId, cancellationToken);
+        return full is null ? null : ToDto(full);
+    }
+
+    public async Task<ProposalResultViewModel?> GetResultAsync(long proposalId, CancellationToken cancellationToken = default)
+    {
+        var full = await _proposals.GetFullAsync(proposalId, cancellationToken);
+        if (full is null) return null;
+
+        var dto = ToDto(full);
+
+        return new ProposalResultViewModel
+        {
+            ProposalId = full.Id,
+            ProposalNo = full.ProposalNo,
+            ProjectName = full.Project?.Name ?? full.Enquiry?.ProjectName ?? string.Empty,
+            ClientName = full.Project?.ClientName ?? full.Enquiry?.ClientName ?? string.Empty,
+            PlantTypeName = (full.Project?.PlantType ?? full.Enquiry?.PlantType ?? PlantType.Etp).ToString().ToUpperInvariant(),
+            CurrencyCode = full.CurrencyCode,
+            TotalCost = full.TotalCost,
+            TrainOperations = dto.TrainOperations,
+            Equipment = dto.Equipment,
+            BoqLines = dto.BoqLines
+        };
+    }
+
+    public async Task<ProposalListViewModel> GetListAsync(int? status = null, CancellationToken cancellationToken = default)
+    {
+        var rows = await _proposals.GetListAsync(status.HasValue ? (ProposalStatus)status.Value : null, cancellationToken);
+
+        return new ProposalListViewModel
+        {
+            Status = status,
+            Items = rows.Select(x => new ProposalListItemViewModel
+            {
+                Id = x.Id,
+                ProposalNo = x.ProposalNo,
+                VersionNo = x.VersionNo,
+                Status = (int)x.Status,
+                StatusName = x.Status.ToString(),
+                EnquiryId = x.EnquiryId,
+                EnquiryNo = x.Enquiry?.EnquiryNo,
+                ProjectId = x.ProjectId,
+                ProjectName = x.Project?.Name ?? x.Enquiry?.ProjectName ?? string.Empty,
+                ClientName = x.Project?.ClientName ?? x.Enquiry?.ClientName ?? string.Empty,
+                PlantTypeName = (x.Project?.PlantType ?? x.Enquiry?.PlantType ?? PlantType.Etp).ToString().ToUpperInvariant(),
+                CurrencyCode = x.CurrencyCode,
+                TotalCost = x.TotalCost,
+                CreatedAt = x.CreatedAt
+            }).ToList()
+        };
+    }
+
+    public async Task<ProposalDetailViewModel?> GetDetailAsync(long proposalId, CancellationToken cancellationToken = default)
+    {
+        var full = await _proposals.GetFullAsync(proposalId, cancellationToken);
+        if (full is null) return null;
+
+        var dto = ToDto(full);
+
+        return new ProposalDetailViewModel
+        {
+            ProposalId = full.Id,
+            ProposalNo = full.ProposalNo,
+            VersionNo = full.VersionNo,
+            Status = (int)full.Status,
+            StatusName = full.Status.ToString(),
+            EnquiryId = full.EnquiryId,
+            EnquiryNo = full.Enquiry?.EnquiryNo,
+            ProjectId = full.ProjectId,
+            ProjectName = full.Project?.Name ?? full.Enquiry?.ProjectName ?? string.Empty,
+            ClientName = full.Project?.ClientName ?? full.Enquiry?.ClientName ?? string.Empty,
+            PlantTypeName = (full.Project?.PlantType ?? full.Enquiry?.PlantType ?? PlantType.Etp).ToString().ToUpperInvariant(),
+            CurrencyCode = full.CurrencyCode,
+            TotalCost = full.TotalCost,
+            CreatedAt = full.CreatedAt,
+            CanRecalculate = full.Status is ProposalStatus.Draft or ProposalStatus.Calculated,
+            CanSend = full.Status == ProposalStatus.Calculated,
+            CanAccept = full.Status == ProposalStatus.Submitted,
+            CanReject = full.Status == ProposalStatus.Submitted,
+            CanRevise = full.EnquiryId.HasValue
+                && full.Status is ProposalStatus.Calculated or ProposalStatus.Submitted or ProposalStatus.Rejected,
+            TrainOperations = dto.TrainOperations,
+            Equipment = dto.Equipment,
+            BoqLines = dto.BoqLines,
+            LineItems = dto.LineItems,
+            StatusHistory = dto.StatusHistory,
+            Streams = full.Enquiry is null
+                ? new List<EnquiryStreamDto>()
+                : full.Enquiry.Streams
+                    .Where(s => !s.IsDeleted)
+                    .OrderBy(s => s.Id)
+                    .Select(s => new EnquiryStreamDto
+                    {
+                        Id = s.Id,
+                        EnquiryId = s.EnquiryId,
+                        StreamName = s.StreamName,
+                        FlowM3PerDay = s.FlowM3PerDay,
+                        CodMgL = s.CodMgL,
+                        BodMgL = s.BodMgL,
+                        TssMgL = s.TssMgL,
+                        TdsMgL = s.TdsMgL,
+                        OilGreaseMgL = s.OilGreaseMgL,
+                        Ph = s.Ph,
+                        TemperatureC = s.TemperatureC
+                    })
+                    .ToList()
+        };
+    }
+
+    private async Task CalculateIntoAsync(long proposalId, PlantType plantType, StreamBasis basis, CancellationToken cancellationToken)
+    {
+        var pack = _resolver.Resolve(plantType);
+
+        var train = pack.SelectTrain(basis);
+        var sized = pack.Size(basis, train);
+        var boq = pack.BuildBoq(sized, new RateSheet());
 
         var trainEntity = new TreatmentTrain
         {
@@ -108,6 +424,7 @@ public sealed class ProposalService : IProposalService
 
         var boqEntities = boq.Select(line => new BoqLine
         {
+            Category = BoqCategory.Civil,
             TagNo = line.Tag,
             ItemDescription = line.Item,
             Unit = line.Unit,
@@ -116,200 +433,85 @@ public sealed class ProposalService : IProposalService
             EquipmentItem = itemsByTag.TryGetValue(line.Tag, out var linked) ? linked : null
         }).ToList();
 
-        await _proposals.ReplaceCalculationAsync(proposal.Id, new[] { trainEntity }, boqEntities, cancellationToken);
+        var lineItems = BuildLineItems(boqEntities);
 
-        var full = await _proposals.GetFullAsync(proposal.Id, cancellationToken)
+        await _proposals.ReplaceCalculationAsync(proposalId, new[] { trainEntity }, boqEntities, lineItems, cancellationToken);
+    }
+
+    private async Task<ProposalDto> LoadDtoAsync(long proposalId, CancellationToken cancellationToken)
+    {
+        var full = await _proposals.GetFullAsync(proposalId, cancellationToken)
             ?? throw new InvalidOperationException("Proposal could not be loaded after calculation.");
 
         return ToDto(full);
     }
 
-    public async Task<bool> SendAsync(long proposalId, DateTime? validUntil = null, CancellationToken cancellationToken = default)
+    private static List<ProposalLineItem> BuildLineItems(IEnumerable<BoqLine> lines)
+        => lines
+            .GroupBy(x => x.Category)
+            .OrderBy(g => (int)g.Key)
+            .Select(g => new ProposalLineItem
+            {
+                Category = g.Key,
+                SortOrder = (int)g.Key,
+                Description = $"{g.Key} works",
+                Unit = "LS",
+                Quantity = 1,
+                Rate = Math.Round(g.Sum(x => x.Quantity * x.Rate), 2)
+            })
+            .Where(x => x.Rate > 0)
+            .ToList();
+
+    private static void Require(Proposal proposal, string action, params ProposalStatus[] allowed)
     {
-        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken);
-        if (proposal is null) return false;
-
-        if (proposal.Status != ProposalStatus.Calculated)
-            throw new InvalidOperationException("Only a calculated proposal can be sent.");
-
-        if (validUntil.HasValue && validUntil.Value.Date < DateTime.Today)
-            throw new InvalidOperationException("Validity date cannot be in the past.");
-
-        var enquiry = await _enquiries.GetByIdAsync(proposal.EnquiryId, cancellationToken)
-            ?? throw new InvalidOperationException($"Enquiry {proposal.EnquiryId} not found.");
-
-        if (enquiry.Status == EnquiryStatus.Won)
-            throw new InvalidOperationException("This enquiry is already won.");
-
-        proposal.Status = ProposalStatus.Sent;
-        proposal.SentAt = DateTime.UtcNow;
-        proposal.ValidUntil = validUntil?.Date;
-        enquiry.Status = EnquiryStatus.ProposalSent;
-
-        await _proposals.SaveChangesAsync(cancellationToken);
-        return true;
+        if (!allowed.Contains(proposal.Status))
+            throw new InvalidOperationException($"Cannot {action} a proposal in '{proposal.Status}' status.");
     }
 
-    public async Task<long> AcceptAsync(long proposalId, CancellationToken cancellationToken = default)
+    private static IReadOnlyList<StreamValues> ToValues(Enquiry enquiry)
+        => enquiry.Streams
+            .Where(x => !x.IsDeleted)
+            .Select(x => new StreamValues(x.FlowM3PerDay, x.CodMgL, x.BodMgL, x.TssMgL, x.TdsMgL, x.OilGreaseMgL, x.Ph, x.TemperatureC))
+            .ToList();
+
+    private static StreamBasis BuildBasis(IndustryType industry, bool zldRequired, IReadOnlyList<StreamValues> streams)
     {
-        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken)
-            ?? throw new InvalidOperationException($"Proposal {proposalId} not found.");
+        if (streams.Count == 0)
+            throw new InvalidOperationException("Add at least one wastewater stream before calculating.");
 
-        if (proposal.Status != ProposalStatus.Sent)
-            throw new InvalidOperationException("Only a sent proposal can be accepted.");
+        var totalFlow = streams.Sum(x => (double)x.Flow);
+        if (totalFlow <= 0)
+            throw new InvalidOperationException("Total flow must be greater than zero.");
 
-        if (proposal.ValidUntil.HasValue && proposal.ValidUntil.Value.Date < DateTime.Today)
-            throw new InvalidOperationException("This proposal has expired. Calculate and send a new version.");
+        double Weighted(Func<StreamValues, decimal> selector)
+            => streams.Sum(x => (double)x.Flow * (double)selector(x)) / totalFlow;
 
-        var enquiry = await _enquiries.GetWithDetailsAsync(proposal.EnquiryId, cancellationToken)
-            ?? throw new InvalidOperationException($"Enquiry {proposal.EnquiryId} not found.");
-
-        if (enquiry.Status == EnquiryStatus.Won
-            || await _projects.GetByEnquiryIdAsync(enquiry.Id, cancellationToken) is not null)
-            throw new InvalidOperationException("A project already exists for this enquiry.");
-
-        var project = new Project
-        {
-            Enquiry = enquiry,
-            SourceProposal = proposal,
-            ProjectCode = await _projects.GenerateProjectCodeAsync(enquiry.PlantType, cancellationToken),
-            Name = enquiry.Title,
-            ClientName = enquiry.ClientName,
-            PlantType = enquiry.PlantType,
-            IndustryType = enquiry.IndustryType,
-            ZldRequired = enquiry.ZldRequired,
-            SiteLocation = enquiry.SiteLocation,
-            Remarks = enquiry.Remarks
-        };
-
-        proposal.Status = ProposalStatus.Accepted;
-        proposal.AcceptedAt = DateTime.UtcNow;
-        enquiry.Status = EnquiryStatus.Won;
-
-        foreach (var version in enquiry.Proposals)
-            version.Project = project;
-
-        foreach (var stream in enquiry.Streams)
-            stream.Project = project;
-
-        await _projects.AddAsync(project, cancellationToken);
-        await _projects.SaveChangesAsync(cancellationToken);
-
-        return project.Id;
-    }
-
-    public async Task<bool> RejectAsync(long proposalId, string? remarks = null, CancellationToken cancellationToken = default)
-    {
-        var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken);
-        if (proposal is null) return false;
-
-        if (proposal.Status != ProposalStatus.Sent)
-            throw new InvalidOperationException("Only a sent proposal can be rejected.");
-
-        var enquiry = await _enquiries.GetByIdAsync(proposal.EnquiryId, cancellationToken)
-            ?? throw new InvalidOperationException($"Enquiry {proposal.EnquiryId} not found.");
-
-        proposal.Status = ProposalStatus.Rejected;
-        proposal.RejectedAt = DateTime.UtcNow;
-        proposal.Remarks = remarks?.Trim();
-
-        if (enquiry.Status != EnquiryStatus.Won)
-            enquiry.Status = EnquiryStatus.ProposalPrepared;
-
-        await _proposals.SaveChangesAsync(cancellationToken);
-        return true;
-    }
-
-    public async Task<IReadOnlyList<ProposalDto>> GetByEnquiryAsync(long enquiryId, CancellationToken cancellationToken = default)
-    {
-        var rows = await _proposals.GetByEnquiryAsync(enquiryId, cancellationToken);
-        return rows.Select(ToSummaryDto).ToList();
-    }
-
-    public async Task<IReadOnlyList<ProposalDto>> GetByProjectAsync(long projectId, CancellationToken cancellationToken = default)
-    {
-        var rows = await _proposals.GetByProjectAsync(projectId, cancellationToken);
-        return rows.Select(ToSummaryDto).ToList();
-    }
-
-    public async Task<ProposalDto?> GetByIdAsync(long proposalId, CancellationToken cancellationToken = default)
-    {
-        var full = await _proposals.GetFullAsync(proposalId, cancellationToken);
-        return full is null ? null : ToDto(full);
-    }
-
-    public async Task<ProposalResultViewModel?> GetResultAsync(long proposalId, CancellationToken cancellationToken = default)
-    {
-        var full = await _proposals.GetFullAsync(proposalId, cancellationToken);
-        if (full is null) return null;
-
-        var dto = ToDto(full);
-
-        return new ProposalResultViewModel
-        {
-            ProposalId = full.Id,
-            EnquiryId = full.EnquiryId,
-            ProjectId = full.ProjectId,
-            EnquiryNo = full.Enquiry.EnquiryNo,
-            ProposalNo = full.ProposalNo,
-            VersionNo = full.VersionNo,
-            Status = (int)full.Status,
-            StatusName = full.Status.ToString(),
-            ProjectName = full.Project?.Name ?? full.Enquiry.Title,
-            ClientName = full.Enquiry.ClientName,
-            PlantTypeName = full.Enquiry.PlantType.ToString().ToUpperInvariant(),
-            CurrencyCode = full.CurrencyCode,
-            TotalCost = full.TotalCost,
-            ValidUntil = full.ValidUntil,
-            SentAt = full.SentAt,
-            AcceptedAt = full.AcceptedAt,
-            RejectedAt = full.RejectedAt,
-            Remarks = full.Remarks,
-            TrainOperations = dto.TrainOperations,
-            Equipment = dto.Equipment,
-            BoqLines = dto.BoqLines
-        };
+        return new StreamBasis(
+            FlowM3PerDay: totalFlow,
+            CodMgL: Weighted(x => x.Cod),
+            BodMgL: Weighted(x => x.Bod),
+            TssMgL: Weighted(x => x.Tss),
+            TdsMgL: Weighted(x => x.Tds),
+            OilGreaseMgL: Weighted(x => x.Oil),
+            Ph: Weighted(x => x.Ph),
+            TemperatureC: Weighted(x => x.Temperature),
+            Industry: industry,
+            ZldRequired: zldRequired);
     }
 
     private static ProposalDto ToSummaryDto(Proposal x) => new()
     {
         Id = x.Id,
-        EnquiryId = x.EnquiryId,
         ProjectId = x.ProjectId,
+        EnquiryId = x.EnquiryId,
         ProposalNo = x.ProposalNo,
         VersionNo = x.VersionNo,
         Status = (int)x.Status,
+        StatusName = x.Status.ToString(),
         CurrencyCode = x.CurrencyCode,
         TotalCost = x.TotalCost,
-        ValidUntil = x.ValidUntil,
-        SentAt = x.SentAt,
-        AcceptedAt = x.AcceptedAt,
-        RejectedAt = x.RejectedAt,
-        Remarks = x.Remarks
+        CreatedAt = x.CreatedAt
     };
-    
-
-    private static StreamBasis BuildBasis(Enquiry enquiry, IReadOnlyList<WastewaterStream> streams)
-    {
-        var totalFlow = streams.Sum(x => (double)x.FlowM3PerDay);
-        if (totalFlow <= 0)
-            throw new InvalidOperationException("Total flow must be greater than zero.");
-
-        double Weighted(Func<WastewaterStream, decimal> selector)
-            => streams.Sum(x => (double)x.FlowM3PerDay * (double)selector(x)) / totalFlow;
-
-        return new StreamBasis(
-            FlowM3PerDay: totalFlow,
-            CodMgL: Weighted(x => x.CodMgL),
-            BodMgL: Weighted(x => x.BodMgL),
-            TssMgL: Weighted(x => x.TssMgL),
-            TdsMgL: Weighted(x => x.TdsMgL),
-            OilGreaseMgL: Weighted(x => x.OilGreaseMgL),
-            Ph: Weighted(x => x.Ph),
-            TemperatureC: Weighted(x => x.TemperatureC),
-            Industry: enquiry.IndustryType,
-            ZldRequired: enquiry.ZldRequired);
-    }
 
     private static ProposalDto ToDto(Proposal proposal)
     {
@@ -321,18 +523,16 @@ public sealed class ProposalService : IProposalService
         return new ProposalDto
         {
             Id = proposal.Id,
-            EnquiryId = proposal.EnquiryId,
             ProjectId = proposal.ProjectId,
+            EnquiryId = proposal.EnquiryId,
             ProposalNo = proposal.ProposalNo,
             VersionNo = proposal.VersionNo,
             Status = (int)proposal.Status,
+            StatusName = proposal.Status.ToString(),
             CurrencyCode = proposal.CurrencyCode,
             TotalCost = proposal.TotalCost,
-            ValidUntil = proposal.ValidUntil,
-            SentAt = proposal.SentAt,
-            AcceptedAt = proposal.AcceptedAt,
-            RejectedAt = proposal.RejectedAt,
-            Remarks = proposal.Remarks,
+            CreatedAt = proposal.CreatedAt,
+            TrainOperations = operations.Select(u => u.UnitType.ToString()).ToList(),
             Equipment = operations
                 .SelectMany(u => u.EquipmentItems.Select(e => new EquipmentDto
                 {
@@ -361,6 +561,39 @@ public sealed class ProposalService : IProposalService
                     Quantity = b.Quantity,
                     Rate = b.Rate,
                     Amount = b.Amount
+                })
+                .ToList(),
+            LineItems = proposal.LineItems
+                .OrderBy(i => i.SortOrder)
+                .ThenBy(i => i.Id)
+                .Select(i => new ProposalLineItemDto
+                {
+                    Id = i.Id,
+                    ProposalId = i.ProposalId,
+                    Category = (int)i.Category,
+                    CategoryName = i.Category.ToString(),
+                    SortOrder = i.SortOrder,
+                    Description = i.Description,
+                    Unit = i.Unit,
+                    Quantity = i.Quantity,
+                    Rate = i.Rate,
+                    Amount = i.Amount
+                })
+                .ToList(),
+            StatusHistory = proposal.StatusHistory
+                .OrderBy(h => h.CreatedAt)
+                .ThenBy(h => h.Id)
+                .Select(h => new ProposalStatusHistoryDto
+                {
+                    Id = h.Id,
+                    ProposalId = h.ProposalId,
+                    FromStatus = h.FromStatus.HasValue ? (int)h.FromStatus.Value : null,
+                    FromStatusName = h.FromStatus?.ToString(),
+                    ToStatus = (int)h.ToStatus,
+                    ToStatusName = h.ToStatus.ToString(),
+                    ChangedBy = h.ChangedBy,
+                    Remarks = h.Remarks,
+                    CreatedAt = h.CreatedAt
                 })
                 .ToList()
         };

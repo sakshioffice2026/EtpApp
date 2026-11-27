@@ -1,15 +1,9 @@
-﻿
-using EPCApp.Database.Enums;
-
+﻿using EPCApp.Database.Enums;
 
 namespace EPCApp.Database.Entities;
 
 public class Project : BaseEntity
 {
-    public long EnquiryId { get; set; }
-
-    public long? SourceProposalId { get; set; }
-
     public string ProjectCode { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;
@@ -26,9 +20,13 @@ public class Project : BaseEntity
 
     public string? Remarks { get; set; }
 
+    public long? EnquiryId { get; set; }
+
+    public long? SourceProposalId { get; set; }
+
     public bool IsDeleted { get; set; }
 
-    public Enquiry Enquiry { get; set; } = null!;
+    public Enquiry? Enquiry { get; set; }
 
     public Proposal? SourceProposal { get; set; }
 

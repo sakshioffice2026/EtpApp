@@ -3,20 +3,13 @@ using EPCApp.Model.DTOs;
 
 namespace EPCApp.Model.ViewModel;
 
-public class EnquiryViewModel
+public class EnquiryFormViewModel
 {
     public long Id { get; set; }
 
+    [StringLength(30)]
     [Display(Name = "Enquiry No")]
-    public string? EnquiryNo { get; set; }
-
-    [Required, DataType(DataType.Date)]
-    [Display(Name = "Enquiry Date")]
-    public DateTime EnquiryDate { get; set; } = DateTime.Today;
-
-    [Required, StringLength(200)]
-    [Display(Name = "Enquiry Title")]
-    public string Title { get; set; } = string.Empty;
+    public string EnquiryNo { get; set; } = string.Empty;
 
     [Required, StringLength(200)]
     [Display(Name = "Client Name")]
@@ -26,19 +19,21 @@ public class EnquiryViewModel
     [Display(Name = "Contact Person")]
     public string? ContactPerson { get; set; }
 
-    [EmailAddress, StringLength(200)]
-    [Display(Name = "Contact Email")]
-    public string? ContactEmail { get; set; }
+    [EmailAddress, StringLength(150)]
+    public string? Email { get; set; }
 
-    [Phone, StringLength(30)]
-    [Display(Name = "Contact Phone")]
-    public string? ContactPhone { get; set; }
+    [StringLength(30)]
+    public string? Phone { get; set; }
 
-    [Range(1, 3, ErrorMessage = "Select a plant type.")]
+    [Required, StringLength(200)]
+    [Display(Name = "Project Name")]
+    public string ProjectName { get; set; } = string.Empty;
+
+    [Required]
     [Display(Name = "Plant Type")]
-    public int PlantType { get; set; }
+    public int PlantType { get; set; } = 1;
 
-    [Range(1, 7, ErrorMessage = "Select an industry.")]
+    [Required]
     [Display(Name = "Industry")]
     public int IndustryType { get; set; }
 
@@ -52,17 +47,7 @@ public class EnquiryViewModel
     [StringLength(1000)]
     public string? Remarks { get; set; }
 
-    public int Status { get; set; }
+    public int Status { get; set; } = 1;
 
-    public long? ProjectId { get; set; }
-
-    public string PlantTypeName { get; set; } = string.Empty;
-
-    public string IndustryTypeName { get; set; } = string.Empty;
-
-    public string StatusName { get; set; } = string.Empty;
-
-    public List<StreamInputDto> Streams { get; set; } = new();
-
-    public List<ProposalDto> Proposals { get; set; } = new();
+    public List<EnquiryStreamDto> Streams { get; set; } = new();
 }

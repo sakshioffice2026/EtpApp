@@ -10,20 +10,28 @@ public enum PlantType
 
 public enum EnquiryStatus
 {
-    New = 1,
-    ProposalPrepared = 2,
-    ProposalSent = 3,
-    Won = 4,
-    Lost = 5
+    Draft = 1,
+    Submitted = 2,
+    ProposalCreated = 3,
+    Converted = 4,
+    Closed = 5
 }
 
 public enum ProposalStatus
 {
     Draft = 1,
     Calculated = 2,
-    Sent = 3,
-    Accepted = 4,
-    Rejected = 5
+    Submitted = 3,
+    Approved = 4,
+    Rejected = 5,
+    Revised = 6
+}
+
+public enum BoqCategory
+{
+    Civil = 1,
+    Mechanical = 2,
+    Electrical = 3
 }
 
 public enum DrawingType
@@ -69,7 +77,14 @@ public enum UnitOperationType
     ActivatedCarbonFilter = 12,
     UltraFiltration = 13,
     ReverseOsmosis = 14,
-    MultiEffectEvaporator = 15
+    MultiEffectEvaporator = 15,
+    PhNeutralization = 16,
+    CoagulationFlocculation = 17,
+    DafApiSeparator = 18,
+    AnaerobicReactor = 19,
+    Disinfection = 20,
+    Softener = 21,
+    AtfdCrystallizer = 22
 }
 
 public enum MaterialOfConstruction
