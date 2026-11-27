@@ -1,7 +1,7 @@
-﻿using EtpApp.Business.Contracts;
-using EtpApp.Database.Enums;
-using EtpApp.Model.DTOs;
-using EtpApp.Model.ViewModel;
+﻿using EPCApp.Business.Contracts;
+using EPCApp.Database.Enums;
+using EPCApp.Model.DTOs;
+using EPCApp.Model.ViewModel;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 

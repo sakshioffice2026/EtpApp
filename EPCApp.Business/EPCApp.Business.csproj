@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EPCApp.Repositories\EPCApp.Repositories.csproj" />
+    <ProjectReference Include="..\EPCApp.Engine\EPCApp.Engine.csproj" />
+    <ProjectReference Include="..\EPCApp.RulePacks\EPCApp.RulePacks.csproj" />
+    <ProjectReference Include="..\EPCApp.Cad\EPCApp.Cad.csproj" />
+    <ProjectReference Include="..\EPCApp.Model\EPCApp.Model.csproj" />
+    <ProjectReference Include="..\EPCApp.Utilities\EPCApp.Utilities.csproj" />
+  </ItemGroup>
+</Project>

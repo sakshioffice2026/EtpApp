@@ -1,12 +1,12 @@
-﻿using EtpApp.Business.Contracts;
-using EtpApp.Business.Resolvers;
-using EtpApp.Business.Services;
-using EtpApp.Engine.Abstractions;
-using EtpApp.Repositories.Contracts;
-using EtpApp.Repositories.Repositories;
-using EtpApp.RulePacks.Etp;
-using EtpApp.RulePacks.Stp;
-using EtpApp.RulePacks.Zld;
+﻿using EPCApp.Business.Contracts;
+using EPCApp.Business.Resolvers;
+using EPCApp.Business.Services;
+using EPCApp.Engine.Abstractions;
+using EPCApp.Repositories.Contracts;
+using EPCApp.Repositories.Repositories;
+using EPCApp.RulePacks.Etp;
+using EPCApp.RulePacks.Stp;
+using EPCApp.RulePacks.Zld;
 
 namespace Web.Helpers;
 
