@@ -6,13 +6,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Entities\TreatmentTrain.cs" />
-  </ItemGroup>
 
-  <ItemGroup>
-    <None Include="Entities\TreatmentTrain.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />

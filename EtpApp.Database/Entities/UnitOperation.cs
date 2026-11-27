@@ -1,12 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+using EtpApp.Database.Enums;
 
-namespace EtpApp.Database.Entities
+namespace EtpApp.Database.Entities;
+
+public class UnitOperation : BaseEntity
 {
-    internal class UnitOperation
-    {
-    }
+    public long TrainId { get; set; }
+
+    public int SequenceNo { get; set; }
+
+    public UnitOperationType UnitType { get; set; }
+
+    public TreatmentTrain Train { get; set; } = null!;
+
+    public ICollection<EquipmentItem> EquipmentItems { get; set; } = new List<EquipmentItem>();
 }

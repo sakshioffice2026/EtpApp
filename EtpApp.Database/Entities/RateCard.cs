@@ -1,4 +1,4 @@
-﻿using EtpApp.Database.Entities.Common;
+﻿
 
 namespace EtpApp.Database.Entities;
 

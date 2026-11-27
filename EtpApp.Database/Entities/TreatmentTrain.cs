@@ -1,5 +1,7 @@
 ﻿
+
 namespace EtpApp.Database.Entities;
+
 
 public class TreatmentTrain : BaseEntity
 {

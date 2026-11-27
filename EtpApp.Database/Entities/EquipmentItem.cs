@@ -1,5 +1,4 @@
-﻿using EtpApp.Database.Entities.Common;
-using EtpApp.Database.Enums;
+﻿using EtpApp.Database.Enums;
 
 
 namespace EtpApp.Database.Entities;

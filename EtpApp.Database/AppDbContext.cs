@@ -1,5 +1,4 @@
 ﻿using EtpApp.Database.Entities;
-using EtpApp.Database.Entities.Common;
 using Microsoft.EntityFrameworkCore;
 using EtpApp.Database.Context;
 using Microsoft.EntityFrameworkCore;
