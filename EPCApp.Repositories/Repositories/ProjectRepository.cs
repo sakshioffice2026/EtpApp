@@ -39,6 +39,10 @@ public class ProjectRepository : GenericRepository<Project>, IProjectRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.ProjectCode == projectCode, cancellationToken);
 
+    public async Task<Project?> GetByEnquiryIdAsync(long enquiryId, CancellationToken cancellationToken = default)
+        => await DbSet
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.EnquiryId == enquiryId, cancellationToken);
     public async Task<string> GenerateProjectCodeAsync(PlantType plantType, CancellationToken cancellationToken = default)
     {
         var prefix = plantType switch

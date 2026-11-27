@@ -6,6 +6,11 @@ public class ProjectViewModel
 {
     public long Id { get; set; }
 
+
+    public long EnquiryId { get; set; }
+
+    public long? SourceProposalId { get; set; }
+
     [Required, StringLength(30)]
     [Display(Name = "Project Code")]
     public string ProjectCode { get; set; } = string.Empty;

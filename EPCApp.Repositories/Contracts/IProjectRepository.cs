@@ -13,5 +13,7 @@ public interface IProjectRepository : IGenericRepository<Project>
 
     Task<Project?> GetByCodeAsync(string projectCode, CancellationToken cancellationToken = default);
 
+    Task<Project?> GetByEnquiryIdAsync(long enquiryId, CancellationToken cancellationToken = default);
+
     Task<string> GenerateProjectCodeAsync(PlantType plantType, CancellationToken cancellationToken = default);
 }

@@ -4,6 +4,9 @@ public class ProjectDto
 {
     public long Id { get; set; }
 
+    public long EnquiryId { get; set; }
+
+    public long? SourceProposalId { get; set; }
     public string ProjectCode { get; set; } = string.Empty;
 
     public string Name { get; set; } = string.Empty;

@@ -4,7 +4,9 @@ public class StreamInputDto
 {
     public long Id { get; set; }
 
-    public long ProjectId { get; set; }
+    public long EnquiryId { get; set; }
+
+    public long? ProjectId { get; set; }
 
     public string StreamName { get; set; } = string.Empty;
 

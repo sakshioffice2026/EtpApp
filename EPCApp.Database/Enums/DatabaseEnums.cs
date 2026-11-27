@@ -8,12 +8,21 @@ public enum PlantType
     Zld = 3
 }
 
+public enum EnquiryStatus
+{
+    New = 1,
+    ProposalPrepared = 2,
+    ProposalSent = 3,
+    Won = 4,
+    Lost = 5
+}
+
 public enum ProposalStatus
 {
     Draft = 1,
     Calculated = 2,
-    Submitted = 3,
-    Approved = 4,
+    Sent = 3,
+    Accepted = 4,
     Rejected = 5
 }
 
@@ -32,6 +41,7 @@ public enum RuleCategory
     PesoSafety = 4,
     StandardRef = 5
 }
+
 public enum IndustryType
 {
     Textile = 1,

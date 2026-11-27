@@ -11,7 +11,12 @@ public class ProposalRepository : GenericRepository<Proposal>, IProposalReposito
     public ProposalRepository(AppDbContext context) : base(context)
     {
     }
-
+    public async Task<IReadOnlyList<Proposal>> GetByEnquiryAsync(long enquiryId, CancellationToken cancellationToken = default)
+    => await DbSet
+        .AsNoTracking()
+        .Where(x => x.EnquiryId == enquiryId)
+        .OrderByDescending(x => x.VersionNo)
+        .ToListAsync(cancellationToken);
     public async Task<IReadOnlyList<Proposal>> GetByProjectAsync(long projectId, CancellationToken cancellationToken = default)
         => await DbSet
             .AsNoTracking()
@@ -21,6 +26,7 @@ public class ProposalRepository : GenericRepository<Proposal>, IProposalReposito
 
     public async Task<Proposal?> GetFullAsync(long id, CancellationToken cancellationToken = default)
         => await DbSet
+             .Include(x => x.Enquiry)
             .Include(x => x.Project)
             .Include(x => x.Trains)
                 .ThenInclude(t => t.UnitOperations)
@@ -30,39 +36,39 @@ public class ProposalRepository : GenericRepository<Proposal>, IProposalReposito
             .AsSplitQuery()
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-    public async Task<Proposal?> GetLatestByProjectAsync(long projectId, CancellationToken cancellationToken = default)
-        => await DbSet
-            .Where(x => x.ProjectId == projectId)
-            .OrderByDescending(x => x.VersionNo)
-            .FirstOrDefaultAsync(cancellationToken);
+    public async Task<Proposal?> GetLatestByEnquiryAsync(long enquiryId, CancellationToken cancellationToken = default)
+    => await DbSet
+        .Where(x => x.EnquiryId == enquiryId)
+        .OrderByDescending(x => x.VersionNo)
+        .FirstOrDefaultAsync(cancellationToken);
 
-    public async Task<int> GetNextVersionNoAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<int> GetNextVersionNoAsync(long enquiryId, CancellationToken cancellationToken = default)
     {
         var latest = await DbSet
-            .Where(x => x.ProjectId == projectId)
+            .Where(x => x.EnquiryId == enquiryId)
             .MaxAsync(x => (int?)x.VersionNo, cancellationToken);
 
         return (latest ?? 0) + 1;
     }
 
-    public async Task<string> GenerateProposalNoAsync(long projectId, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateProposalNoAsync(long enquiryId, CancellationToken cancellationToken = default)
     {
         var existing = await DbSet
             .AsNoTracking()
-            .Where(x => x.ProjectId == projectId)
+            .Where(x => x.EnquiryId == enquiryId)
             .Select(x => x.ProposalNo)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (!string.IsNullOrEmpty(existing))
             return existing;
 
-        var projectCode = await Context.Set<Project>()
+        var enquiryNo = await Context.Set<Enquiry>()
             .AsNoTracking()
-            .Where(x => x.Id == projectId)
-            .Select(x => x.ProjectCode)
+            .Where(x => x.Id == enquiryId)
+            .Select(x => x.EnquiryNo)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return $"PR-{projectCode ?? projectId.ToString()}";
+        return $"PR-{enquiryNo ?? enquiryId.ToString()}";
     }
 
     public async Task ReplaceCalculationAsync(

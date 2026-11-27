@@ -3,7 +3,9 @@ namespace EPCApp.Database.Entities;
 
 public class WastewaterStream : BaseEntity
 {
-    public long ProjectId { get; set; }
+    public long EnquiryId { get; set; }
+
+    public long? ProjectId { get; set; }
 
     public string StreamName { get; set; } = string.Empty;
 
@@ -25,5 +27,7 @@ public class WastewaterStream : BaseEntity
 
     public bool IsDeleted { get; set; }
 
-    public Project Project { get; set; } = null!;
+    public Enquiry Enquiry { get; set; } = null!;
+
+    public Project? Project { get; set; }
 }

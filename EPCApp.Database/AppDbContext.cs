@@ -7,7 +7,7 @@ public class AppDbContext : DbContext
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
-
+    public DbSet<Enquiry> Enquiries => Set<Enquiry>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<WastewaterStream> WastewaterStreams => Set<WastewaterStream>();
     public DbSet<Proposal> Proposals => Set<Proposal>();
@@ -22,7 +22,23 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
+        modelBuilder.Entity<Enquiry>(e =>
+        {
+            e.HasIndex(x => x.EnquiryNo).IsUnique();
+            e.Property(x => x.EnquiryNo).HasMaxLength(30);
+            e.Property(x => x.EnquiryDate).HasColumnType("date");
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.Property(x => x.ClientName).HasMaxLength(200);
+            e.Property(x => x.ContactPerson).HasMaxLength(150);
+            e.Property(x => x.ContactEmail).HasMaxLength(200);
+            e.Property(x => x.ContactPhone).HasMaxLength(30);
+            e.Property(x => x.SiteLocation).HasMaxLength(250);
+            e.Property(x => x.Remarks).HasMaxLength(1000);
+            e.Property(x => x.PlantType).HasConversion<byte>();
+            e.Property(x => x.IndustryType).HasConversion<byte>();
+            e.Property(x => x.Status).HasConversion<byte>();
+            e.HasQueryFilter(x => !x.IsDeleted);
+        });
         modelBuilder.Entity<Project>(e =>
         {
             e.HasIndex(x => x.ProjectCode).IsUnique();
@@ -34,6 +50,14 @@ public class AppDbContext : DbContext
             e.Property(x => x.PlantType).HasConversion<byte>();
             e.Property(x => x.IndustryType).HasConversion<byte>();
             e.HasQueryFilter(x => !x.IsDeleted);
+            e.HasOne(x => x.Enquiry)
+                .WithOne(q => q.Project)
+                .HasForeignKey<Project>(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.SourceProposal)
+                .WithOne()
+                .HasForeignKey<Project>(x => x.SourceProposalId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<WastewaterStream>(e =>
@@ -47,6 +71,10 @@ public class AppDbContext : DbContext
             e.Property(x => x.OilGreaseMgL).HasPrecision(12, 2);
             e.Property(x => x.Ph).HasPrecision(4, 2);
             e.Property(x => x.TemperatureC).HasPrecision(5, 2);
+            e.HasOne(x => x.Enquiry)
+                .WithMany(q => q.Streams)
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Project)
                 .WithMany(p => p.Streams)
                 .HasForeignKey(x => x.ProjectId)
@@ -65,7 +93,14 @@ public class AppDbContext : DbContext
                 .WithMany(p => p.Proposals)
                 .HasForeignKey(x => x.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.Property(x => x.ValidUntil).HasColumnType("date");
+            e.Property(x => x.Remarks).HasMaxLength(1000);
+            e.HasOne(x => x.Enquiry)
+                .WithMany(q => q.Proposals)
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
+
 
         modelBuilder.Entity<TreatmentTrain>(e =>
         {
