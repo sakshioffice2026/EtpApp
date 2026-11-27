@@ -39,7 +39,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<WastewaterStream>(e =>
         {
             e.Property(x => x.StreamName).HasMaxLength(150);
-            e.Property(x => x.FlowM3PerDay).HasPrecision(12, 2);
+            e.Property(x => x.FlowM3PerDay).HasColumnName("flow_m3_per_day").HasPrecision(12, 2);
             e.Property(x => x.CodMgL).HasPrecision(12, 2);
             e.Property(x => x.BodMgL).HasPrecision(12, 2);
             e.Property(x => x.TssMgL).HasPrecision(12, 2);
