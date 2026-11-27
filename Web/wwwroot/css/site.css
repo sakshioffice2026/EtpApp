@@ -719,6 +719,57 @@ td.actions {
         vertical-align: middle;
     }
 
+/* 15b. ENQUIRY / PROPOSAL */
+.table-scroll {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.table tfoot th {
+    padding: .65rem .75rem;
+    background: var(--bp-tint);
+    color: var(--bp-ink);
+    font-weight: 700;
+    border-top: 2px solid var(--bp-row-line);
+}
+
+.table td .form-control {
+    min-width: 90px;
+    padding: .4rem .55rem;
+}
+
+.table td:first-child .form-control {
+    min-width: 150px;
+}
+
+.filter-form .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: .75rem 1.25rem;
+}
+
+.filter-form .form-group {
+    min-width: 160px;
+}
+
+.filter-form .form-group:last-child {
+    display: flex;
+    gap: .6rem;
+}
+
+.page-head h1 small {
+    margin-left: .4rem;
+    color: var(--bp-ink-mute);
+    font-size: .6em;
+    font-weight: 600;
+}
+
+h2 + .table-scroll,
+form > h2 {
+    margin-top: 1.5rem;
+}
+
 /* 16. TREATMENT TRAIN + PARAMS */
 .train-flow {
     display: flex;

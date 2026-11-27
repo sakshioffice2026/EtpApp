@@ -48,9 +48,50 @@
         });
     }
 
+    function reindexStreams(body) {
+        var rows = body.querySelectorAll('[data-stream-row]');
+        Array.prototype.forEach.call(rows, function (row, i) {
+            var inputs = row.querySelectorAll('input[name]');
+            Array.prototype.forEach.call(inputs, function (input) {
+                input.name = input.name.replace(/Streams\[\d+\]/, 'Streams[' + i + ']');
+            });
+        });
+    }
+
+    function initStreamRows() {
+        document.addEventListener('click', function (e) {
+            var add = e.target.closest('[data-stream-add]');
+            if (add) {
+                var body = document.querySelector('[data-stream-body]');
+                if (!body) return;
+
+                var index = body.querySelectorAll('[data-stream-row]').length;
+                var url = add.getAttribute('data-url') + '?index=' + index;
+
+                fetch(url, { credentials: 'same-origin' })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        body.insertAdjacentHTML('beforeend', html);
+                    });
+                return;
+            }
+
+            var remove = e.target.closest('[data-stream-remove]');
+            if (remove) {
+                var tbody = remove.closest('[data-stream-body]');
+                var row = remove.closest('[data-stream-row]');
+                if (!tbody || !row) return;
+
+                row.parentNode.removeChild(row);
+                reindexStreams(tbody);
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initTopbar();
         initFlash();
         initConfirm();
+        initStreamRows();
     });
 })();
