@@ -4,9 +4,9 @@ using EtpApp.Database.Context;
 using Microsoft.EntityFrameworkCore;
 namespace EtpApp.Database.Context;
 
-public class EtpDbContext : DbContext
+public class AppContext : DbContext
 {
-    public EtpDbContext(DbContextOptions<EtpDbContext> options) : base(options)
+    public AppContext(DbContextOptions<AppContext> options) : base(options)
     {
     }
 
