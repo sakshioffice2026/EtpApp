@@ -6,6 +6,14 @@ namespace EPCApp.Engine.Sizing.Tanks;
 
 public static class EqualizationTankSizer
 {
+    public static SizedEquipment Size(string tag, double flowM3PerDay, DesignBasis design) =>
+    Size(
+        tag,
+        flowM3PerDay,
+        design.Rule(DesignBasis.RuleKey("Equalization", "EQ_HRT", "HrtHours"), 8),
+        design.Rule(DesignBasis.RuleKey("Equalization", "EQ_DEPTH", "WaterDepthM"), 4.0),
+        design.Rule(DesignBasis.RuleKey("Equalization", "EQ_FREEBOARD", "FreeboardM"), 0.5),
+        design.Rule(DesignBasis.RuleKey("Equalization", "EQ_MIXING_AIR", "AirM3PerHourPerM3"), 0.75));
     public static SizedEquipment Size(
         string tag,
         double flowM3PerDay,

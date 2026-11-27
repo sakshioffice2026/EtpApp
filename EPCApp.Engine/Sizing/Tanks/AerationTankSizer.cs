@@ -10,7 +10,19 @@ public static class AerationTankSizer
     private const double AtmosphericPressurePa = 101325.0;
     private const double WaterPressurePerMPa = 9806.65;
     private const double AdiabaticIndex = 1.4;
-
+    public static SizedEquipment Size(string tag, double flowM3PerDay, double bodInMgL, DesignBasis design) =>
+    Size(
+        tag,
+        flowM3PerDay,
+        bodInMgL,
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_BOD_OUT", "BodOutMgL"), 30),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_MLSS", "MlssMgL"), 3500),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_FM", "FoodToMicroorganism"), 0.15),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_DEPTH", "WaterDepthM"), 4.5),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_FREEBOARD", "FreeboardM"), 0.5),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_O2_PER_BOD", "OxygenPerKgBod"), 1.2),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_OTE", "OxygenTransferEfficiency"), 0.20),
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_BLOWER_EFF", "BlowerEfficiency"), 0.65));
     public static SizedEquipment Size(
         string tag,
         double flowM3PerDay,

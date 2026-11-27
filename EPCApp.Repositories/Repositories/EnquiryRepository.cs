@@ -95,4 +95,14 @@ public class EnquiryRepository : GenericRepository<Enquiry>, IEnquiryRepository
         await Context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
+
+    public async Task<EnquiryStream?> GetStreamAsync(long enquiryId, long streamId, CancellationToken cancellationToken = default)
+        => await Context.Set<EnquiryStream>()
+            .FirstOrDefaultAsync(x => x.Id == streamId && x.EnquiryId == enquiryId, cancellationToken);
+
+    public async Task UpdateStreamAsync(EnquiryStream stream, CancellationToken cancellationToken = default)
+    {
+        Context.Set<EnquiryStream>().Update(stream);
+        await Context.SaveChangesAsync(cancellationToken);
+    }
 }

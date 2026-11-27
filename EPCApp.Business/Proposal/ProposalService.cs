@@ -1,4 +1,3 @@
-using System.Text.Json;
 using EPCApp.Business.Contracts;
 using EPCApp.Business.Resolvers;
 using EPCApp.Database.Entities;
@@ -8,6 +7,8 @@ using EPCApp.Engine.Models;
 using EPCApp.Model.DTOs;
 using EPCApp.Model.ViewModel;
 using EPCApp.Repositories.Contracts;
+using System.Numerics;
+using System.Text.Json;
 
 namespace EPCApp.Business.Services;
 
@@ -15,19 +16,22 @@ public sealed class ProposalService : IProposalService
 {
     private readonly IProjectRepository _projects;
     private readonly IEnquiryRepository _enquiries;
-    private readonly IProposalRepository _proposals;
     private readonly RulePackResolver _resolver;
+    private readonly IDesignBasisLoader _designBasisLoader;
+    private readonly IProposalRepository _proposals;
 
     public ProposalService(
         IProjectRepository projects,
         IEnquiryRepository enquiries,
         IProposalRepository proposals,
-        RulePackResolver resolver)
+        RulePackResolver resolver,
+        IDesignBasisLoader designBasisLoader)
     {
         _projects = projects;
         _enquiries = enquiries;
         _proposals = proposals;
         _resolver = resolver;
+        _designBasisLoader = designBasisLoader;
     }
 
     private sealed record StreamValues(
@@ -342,6 +346,7 @@ public sealed class ProposalService : IProposalService
             ProjectName = full.Project?.Name ?? full.Enquiry?.ProjectName ?? string.Empty,
             ClientName = full.Project?.ClientName ?? full.Enquiry?.ClientName ?? string.Empty,
             PlantTypeName = (full.Project?.PlantType ?? full.Enquiry?.PlantType ?? PlantType.Etp).ToString().ToUpperInvariant(),
+            Notes = full.Notes,
             CurrencyCode = full.CurrencyCode,
             TotalCost = full.TotalCost,
             CreatedAt = full.CreatedAt,
@@ -382,9 +387,12 @@ public sealed class ProposalService : IProposalService
     private async Task CalculateIntoAsync(long proposalId, PlantType plantType, StreamBasis basis, CancellationToken cancellationToken)
     {
         var pack = _resolver.Resolve(plantType);
+        var design = await _designBasisLoader.LoadAsync(plantType, cancellationToken);
+        var plan = new TrainPlan();
 
         var train = pack.SelectTrain(basis);
-        var sized = pack.Size(basis, train);
+        var sized = pack.Size(basis, train, design, plan);
+        var boq = pack.BuildBoq(sized, design);
         var boq = pack.BuildBoq(sized, new RateSheet());
 
         var trainEntity = new TreatmentTrain
@@ -424,7 +432,7 @@ public sealed class ProposalService : IProposalService
 
         var boqEntities = boq.Select(line => new BoqLine
         {
-            Category = BoqCategory.Civil,
+            Category = line.Category,
             TagNo = line.Tag,
             ItemDescription = line.Item,
             Unit = line.Unit,
@@ -436,7 +444,18 @@ public sealed class ProposalService : IProposalService
         var lineItems = BuildLineItems(boqEntities);
 
         await _proposals.ReplaceCalculationAsync(proposalId, new[] { trainEntity }, boqEntities, lineItems, cancellationToken);
+
+        var notes = plan.Notes.Count == 0 ? null : string.Join(Environment.NewLine, plan.Notes);
+        var saved = await _proposals.GetByIdAsync(proposalId, cancellationToken);
+        if (saved is not null)
+        {
+            saved.Notes = notes;
+            _proposals.Update(saved);
+            await _proposals.SaveChangesAsync(cancellationToken);
+        }
+
     }
+
 
     private async Task<ProposalDto> LoadDtoAsync(long proposalId, CancellationToken cancellationToken)
     {
@@ -532,6 +551,7 @@ public sealed class ProposalService : IProposalService
             CurrencyCode = proposal.CurrencyCode,
             TotalCost = proposal.TotalCost,
             CreatedAt = proposal.CreatedAt,
+            Notes = proposal.Notes,
             TrainOperations = operations.Select(u => u.UnitType.ToString()).ToList(),
             Equipment = operations
                 .SelectMany(u => u.EquipmentItems.Select(e => new EquipmentDto
@@ -556,6 +576,8 @@ public sealed class ProposalService : IProposalService
                 {
                     Id = b.Id,
                     TagNo = b.TagNo,
+                    Category = (int)b.Category,
+                    CategoryName = b.Category.ToString(),
                     ItemDescription = b.ItemDescription,
                     Unit = b.Unit,
                     Quantity = b.Quantity,

@@ -11,7 +11,7 @@ public interface IPlantRulePack
 
     TrainDefinition SelectTrain(StreamBasis basis);
 
-    IReadOnlyList<SizedEquipment> Size(StreamBasis basis, TrainDefinition train);
+    IReadOnlyList<SizedEquipment> Size(StreamBasis basis, TrainDefinition train, DesignBasis design, TrainPlan plan);
 
-    IReadOnlyList<BoqLineItem> BuildBoq(IEnumerable<SizedEquipment> equipment, RateSheet rates);
+    IReadOnlyList<BoqLineItem> BuildBoq(IEnumerable<SizedEquipment> equipment, DesignBasis design);
 }

@@ -16,4 +16,9 @@ public interface IEnquiryRepository : IGenericRepository<Enquiry>
     Task<string> GenerateEnquiryNoAsync(PlantType plantType, CancellationToken cancellationToken = default);
 
     Task ReplaceStreamsAsync(long enquiryId, IEnumerable<EnquiryStream> streams, CancellationToken cancellationToken = default);
+
+
+    Task<EnquiryStream?> GetStreamAsync(long enquiryId, long streamId, CancellationToken cancellationToken = default);
+
+    Task UpdateStreamAsync(EnquiryStream stream, CancellationToken cancellationToken = default);
 }

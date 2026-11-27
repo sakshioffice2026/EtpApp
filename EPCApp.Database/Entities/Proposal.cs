@@ -18,6 +18,8 @@ public class Proposal : BaseEntity
 
     public decimal TotalCost { get; set; }
 
+    public string? Notes { get; set; }
+
     public Project? Project { get; set; }
 
     public Enquiry? Enquiry { get; set; }

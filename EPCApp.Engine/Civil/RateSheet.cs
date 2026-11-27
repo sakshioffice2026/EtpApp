@@ -30,7 +30,8 @@ public sealed class RateSheet
             RccPerM3 = Get("RCC_M30", defaults.RccPerM3),
             ShutteringPerM2 = Get("SHUTTERING", defaults.ShutteringPerM2),
             ReinforcementPerKg = Get("REINFORCEMENT", defaults.ReinforcementPerKg),
-            WaterproofingPerM2 = Get("WATERPROOFING", defaults.WaterproofingPerM2)
+            WaterproofingPerM2 = Get("WATERPROOFING", defaults.WaterproofingPerM2),
+            ReinforcementKgPerM3 = Get("REINFORCEMENT_KG_PER_M3", defaults.ReinforcementKgPerM3)
         };
     }
 }

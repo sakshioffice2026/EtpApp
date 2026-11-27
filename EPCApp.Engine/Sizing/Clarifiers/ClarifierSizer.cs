@@ -7,7 +7,15 @@ namespace EPCApp.Engine.Sizing.Clarifiers;
 public static class ClarifierSizer
 {
     private const double MaxDiameterM = 30.0;
-
+    public static SizedEquipment Size(string tag, double flowM3PerDay, DesignBasis design) =>
+    Size(
+        tag,
+        flowM3PerDay,
+        design.Rule(DesignBasis.RuleKey("Aeration", "AT_MLSS", "MlssMgL"), 3500),
+        design.Rule(DesignBasis.RuleKey("SecondaryClarifier", "SC_RECYCLE", "RecycleRatio"), 0.75),
+        design.Rule(DesignBasis.RuleKey("SecondaryClarifier", "SC_SOR", "SurfaceOverflowRate"), 20),
+        design.Rule(DesignBasis.RuleKey("SecondaryClarifier", "SC_DEPTH", "WaterDepthM"), 3.5),
+        design.Rule(DesignBasis.RuleKey("SecondaryClarifier", "SC_FREEBOARD", "FreeboardM"), 0.5));
     public static SizedEquipment Size(
         string tag,
         double flowM3PerDay,

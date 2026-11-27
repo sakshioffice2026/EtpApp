@@ -109,6 +109,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.ProposalNo).HasMaxLength(40);
             e.Property(x => x.CurrencyCode).HasMaxLength(3).IsFixedLength();
             e.Property(x => x.TotalCost).HasPrecision(16, 2);
+            e.Property(x => x.Notes).HasColumnType("text");
             e.Property(x => x.Status).HasConversion<byte>();
             e.HasOne(x => x.Project)
                 .WithMany(p => p.Proposals)

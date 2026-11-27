@@ -49,7 +49,7 @@ public sealed class ZldRulePack : IPlantRulePack
         };
     }
 
-    public IReadOnlyList<SizedEquipment> Size(StreamBasis basis, TrainDefinition train)
+    public IReadOnlyList<SizedEquipment> Size(StreamBasis basis, TrainDefinition train, DesignBasis design, TrainPlan plan)
     {
         var equipment = new List<SizedEquipment>();
         var bodIn = basis.BodMgL > 0 ? basis.BodMgL : DefaultBodMgL;
@@ -75,8 +75,9 @@ public sealed class ZldRulePack : IPlantRulePack
         return equipment;
     }
 
-    public IReadOnlyList<BoqLineItem> BuildBoq(IEnumerable<SizedEquipment> equipment, RateSheet rates)
+    public IReadOnlyList<BoqLineItem> BuildBoq(IEnumerable<SizedEquipment> equipment, DesignBasis design)
     {
+        var rates = design.Civil;
         var lines = new List<BoqLineItem>();
 
         foreach (var item in equipment)

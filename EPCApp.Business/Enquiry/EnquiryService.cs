@@ -88,6 +88,45 @@ public sealed class EnquiryService : IEnquiryService
         return true;
     }
 
+    public async Task<EnquiryStreamDto?> GetStreamAsync(long enquiryId, long streamId, CancellationToken cancellationToken = default)
+    {
+        var entity = await _enquiries.GetStreamAsync(enquiryId, streamId, cancellationToken);
+        if (entity is null || entity.IsDeleted) return null;
+
+        return new EnquiryStreamDto
+        {
+            Id = entity.Id,
+            EnquiryId = entity.EnquiryId,
+            StreamName = entity.StreamName,
+            FlowM3PerDay = entity.FlowM3PerDay,
+            CodMgL = entity.CodMgL,
+            BodMgL = entity.BodMgL,
+            TssMgL = entity.TssMgL,
+            TdsMgL = entity.TdsMgL,
+            OilGreaseMgL = entity.OilGreaseMgL,
+            Ph = entity.Ph,
+            TemperatureC = entity.TemperatureC
+        };
+    }
+
+    public async Task<bool> UpdateStreamAsync(long enquiryId, EnquiryStreamDto stream, CancellationToken cancellationToken = default)
+    {
+        var entity = await _enquiries.GetStreamAsync(enquiryId, stream.Id, cancellationToken);
+        if (entity is null || entity.IsDeleted) return false;
+
+        entity.StreamName = string.IsNullOrWhiteSpace(stream.StreamName) ? "Stream" : stream.StreamName.Trim();
+        entity.FlowM3PerDay = stream.FlowM3PerDay;
+        entity.CodMgL = stream.CodMgL;
+        entity.BodMgL = stream.BodMgL;
+        entity.TssMgL = stream.TssMgL;
+        entity.TdsMgL = stream.TdsMgL;
+        entity.OilGreaseMgL = stream.OilGreaseMgL;
+        entity.Ph = stream.Ph;
+        entity.TemperatureC = stream.TemperatureC;
+
+        await _enquiries.UpdateStreamAsync(entity, cancellationToken);
+        return true;
+    }
     public async Task<bool> DeleteAsync(long id, CancellationToken cancellationToken = default)
     {
         var entity = await _enquiries.GetByIdAsync(id, cancellationToken);

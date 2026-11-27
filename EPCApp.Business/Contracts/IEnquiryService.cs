@@ -14,6 +14,11 @@ public interface IEnquiryService
 
     Task<bool> UpdateAsync(EnquiryDto enquiry, CancellationToken cancellationToken = default);
 
+
+    Task<EnquiryStreamDto?> GetStreamAsync(long enquiryId, long streamId, CancellationToken cancellationToken = default);
+
+    Task<bool> UpdateStreamAsync(long enquiryId, EnquiryStreamDto stream, CancellationToken cancellationToken = default);
+
     Task<bool> DeleteAsync(long id, CancellationToken cancellationToken = default);
 
     Task<bool> SetStatusAsync(long id, int status, CancellationToken cancellationToken = default);

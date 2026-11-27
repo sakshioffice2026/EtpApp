@@ -30,7 +30,9 @@ public class EtpController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Intake(StreamInputDto model, CancellationToken cancellationToken)
     {
-        var project = await _projects.GetByIdAsync(model.ProjectId, cancellationToken);
+        if (!model.ProjectId.HasValue) return NotFound();
+
+        var project = await _projects.GetByIdAsync(model.ProjectId.Value, cancellationToken);
         if (project is null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(model.StreamName))
