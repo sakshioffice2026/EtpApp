@@ -1,0 +1,123 @@
+@model EnquiryFormViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Microsoft.AspNetCore.Mvc.ViewFeatures
+@{
+    ViewData["Title"] = "Edit Enquiry";
+    var plantTypes = (List<SelectListItem>)ViewBag.PlantTypes;
+    var industryTypes = (List<SelectListItem>)ViewBag.IndustryTypes;
+}
+
+<div class="page-head">
+    <h1>Edit Enquiry</h1>
+    <a class="btn" asp-action="Details" asp-route-id="@Model.Id">Back</a>
+</div>
+
+<div class="card">
+    <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+        <input type="hidden" asp-for="Id" />
+        <input type="hidden" asp-for="Status" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-error"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="EnquiryNo"></label>
+                <input asp-for="EnquiryNo" class="form-control" readonly />
+                <span asp-validation-for="EnquiryNo" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ClientName"></label>
+                <input asp-for="ClientName" class="form-control" />
+                <span asp-validation-for="ClientName" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ContactPerson"></label>
+                <input asp-for="ContactPerson" class="form-control" />
+                <span asp-validation-for="ContactPerson" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Phone"></label>
+                <input asp-for="Phone" class="form-control" />
+                <span asp-validation-for="Phone" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ProjectName"></label>
+                <input asp-for="ProjectName" class="form-control" />
+                <span asp-validation-for="ProjectName" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PlantType"></label>
+                <select asp-for="PlantType" asp-items="plantTypes" class="form-control"></select>
+                <span asp-validation-for="PlantType" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="IndustryType"></label>
+                <select asp-for="IndustryType" asp-items="industryTypes" class="form-control"></select>
+                <span asp-validation-for="IndustryType" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="SiteLocation"></label>
+                <input asp-for="SiteLocation" class="form-control" />
+                <span asp-validation-for="SiteLocation" class="field-error"></span>
+            </div>
+
+            <div class="form-group form-check">
+                <input asp-for="ZldRequired" type="checkbox" />
+                <label asp-for="ZldRequired"></label>
+            </div>
+
+            <div class="form-group form-wide">
+                <label asp-for="Remarks"></label>
+                <textarea asp-for="Remarks" rows="3" class="form-control"></textarea>
+                <span asp-validation-for="Remarks" class="field-error"></span>
+            </div>
+        </div>
+
+        <h2>Wastewater Streams</h2>
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Stream</th>
+                        <th>Flow (m&sup3;/day)</th>
+                        <th>COD</th>
+                        <th>BOD</th>
+                        <th>TSS</th>
+                        <th>TDS</th>
+                        <th>Oil &amp; Grease</th>
+                        <th>pH</th>
+                        <th>Temp (&deg;C)</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody data-stream-body>
+                    @for (var i = 0; i < Model.Streams.Count; i++)
+                    {
+                        <partial name="_StreamRow" model="Model.Streams[i]" view-data='new ViewDataDictionary(ViewData) { { "Index", i } }' />
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" class="btn" data-stream-add data-url="@Url.Action("StreamRow", "Enquiry")">Add Stream</button>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a class="btn" asp-action="Details" asp-route-id="@Model.Id">Cancel</a>
+        </div>
+    </form>
+</div>

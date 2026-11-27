@@ -1,0 +1,149 @@
+@model EnquiryFormViewModel
+@{
+    ViewData["Title"] = Model.EnquiryNo;
+    var proposals = (IReadOnlyList<ProposalDto>)ViewBag.Proposals;
+    var plantTypeName = (string)ViewBag.PlantTypeName;
+    var industryTypeName = (string)ViewBag.IndustryTypeName;
+    var statusName = (string)ViewBag.StatusName;
+    var createdAt = (DateTime)ViewBag.CreatedAt;
+    var isOpen = Model.Status != 4 && Model.Status != 5;
+}
+
+<div class="page-head">
+    <h1>Enquiry @Model.EnquiryNo</h1>
+    <div class="actions">
+        <a class="btn" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+        @if (Model.Status == 1)
+        {
+            <form asp-action="Submit" asp-route-id="@Model.Id" method="post" class="inline-form">
+                <button type="submit" class="btn">Submit</button>
+            </form>
+        }
+        @if (isOpen)
+        {
+            <form asp-action="CreateProposal" asp-route-id="@Model.Id" method="post" class="inline-form">
+                <button type="submit" class="btn btn-primary">Create Proposal</button>
+            </form>
+            <form asp-action="Close" asp-route-id="@Model.Id" method="post" class="inline-form" data-confirm="Close this enquiry?">
+                <button type="submit" class="btn">Close</button>
+            </form>
+        }
+        <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="inline-form" data-confirm="Delete this enquiry?">
+            <button type="submit" class="btn btn-danger">Delete</button>
+        </form>
+        <a class="btn" asp-action="Index">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <dt>Enquiry No</dt>
+        <dd>@Model.EnquiryNo</dd>
+        <dt>Status</dt>
+        <dd><span class="badge">@statusName</span></dd>
+        <dt>Client</dt>
+        <dd>@Model.ClientName</dd>
+        <dt>Contact Person</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.ContactPerson) ? "-" : Model.ContactPerson)</dd>
+        <dt>Email</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Email) ? "-" : Model.Email)</dd>
+        <dt>Phone</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Phone) ? "-" : Model.Phone)</dd>
+        <dt>Project</dt>
+        <dd>@Model.ProjectName</dd>
+        <dt>Plant Type</dt>
+        <dd><span class="badge">@plantTypeName</span></dd>
+        <dt>Industry</dt>
+        <dd>@industryTypeName</dd>
+        <dt>ZLD Required</dt>
+        <dd>@(Model.ZldRequired ? "Yes" : "No")</dd>
+        <dt>Site Location</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.SiteLocation) ? "-" : Model.SiteLocation)</dd>
+        <dt>Remarks</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Remarks) ? "-" : Model.Remarks)</dd>
+        <dt>Created</dt>
+        <dd>@createdAt.ToString("dd MMM yyyy HH:mm")</dd>
+    </dl>
+</div>
+
+<h2>Wastewater Streams</h2>
+<div class="card">
+    @if (Model.Streams.Count == 0)
+    {
+        <div class="empty">No streams entered yet.</div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Stream</th>
+                        <th class="num">Flow (m&sup3;/day)</th>
+                        <th class="num">COD</th>
+                        <th class="num">BOD</th>
+                        <th class="num">TSS</th>
+                        <th class="num">TDS</th>
+                        <th class="num">Oil &amp; Grease</th>
+                        <th class="num">pH</th>
+                        <th class="num">Temp (&deg;C)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Streams)
+                    {
+                        <tr>
+                            <td>@s.StreamName</td>
+                            <td class="num">@s.FlowM3PerDay.ToString("0.##")</td>
+                            <td class="num">@s.CodMgL.ToString("0.##")</td>
+                            <td class="num">@s.BodMgL.ToString("0.##")</td>
+                            <td class="num">@s.TssMgL.ToString("0.##")</td>
+                            <td class="num">@s.TdsMgL.ToString("0.##")</td>
+                            <td class="num">@s.OilGreaseMgL.ToString("0.##")</td>
+                            <td class="num">@s.Ph.ToString("0.##")</td>
+                            <td class="num">@s.TemperatureC.ToString("0.##")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<h2>Proposals</h2>
+<div class="card">
+    @if (proposals.Count == 0)
+    {
+        <div class="empty">No proposals created yet.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Proposal No</th>
+                    <th>Version</th>
+                    <th>Status</th>
+                    <th class="num">Total Cost</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in proposals)
+                {
+                    <tr>
+                        <td>@p.ProposalNo</td>
+                        <td>v@(p.VersionNo)</td>
+                        <td><span class="badge">@p.StatusName</span></td>
+                        <td class="num">@p.CurrencyCode @p.TotalCost.ToString("N2")</td>
+                        <td>@p.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td class="actions">
+                            <a class="btn btn-small" asp-controller="Proposal" asp-action="Details" asp-route-id="@p.Id">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

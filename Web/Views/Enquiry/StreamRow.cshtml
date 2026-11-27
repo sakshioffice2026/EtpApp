@@ -1,0 +1,17 @@
+@model EPCApp.Model.DTOs.EnquiryStreamDto
+@{
+    var idx = ViewData["Index"] is int n ? n : 0;
+}
+
+<tr data-stream-row>
+    <td><input type="text" name="Streams[@idx].StreamName" value="@Model.StreamName" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].FlowM3PerDay" value="@Model.FlowM3PerDay.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].CodMgL" value="@Model.CodMgL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].BodMgL" value="@Model.BodMgL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].TssMgL" value="@Model.TssMgL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].TdsMgL" value="@Model.TdsMgL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" name="Streams[@idx].OilGreaseMgL" value="@Model.OilGreaseMgL.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" min="0" max="14" name="Streams[@idx].Ph" value="@Model.Ph.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td><input type="number" step="0.01" name="Streams[@idx].TemperatureC" value="@Model.TemperatureC.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="form-control" /></td>
+    <td class="actions"><button type="button" class="btn btn-small btn-danger" data-stream-remove>Remove</button></td>
+</tr>

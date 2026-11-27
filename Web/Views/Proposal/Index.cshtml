@@ -1,0 +1,85 @@
+@model ProposalListViewModel
+@{
+    ViewData["Title"] = "Proposals";
+    var statusTypes = ViewBag.StatusTypes as List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem> ?? new();
+}
+
+<div class="page-head">
+    <h1>Proposals</h1>
+    <a class="btn" asp-controller="Enquiry" asp-action="Index">Enquiries</a>
+</div>
+
+<div class="card">
+    <form method="get" asp-action="Index" class="filter-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="status">Status</label>
+                <select id="status" name="status" class="form-control">
+                    <option value="">All</option>
+                    @foreach (var s in statusTypes)
+                    {
+                        <option value="@s.Value" selected="@(Model.Status?.ToString() == s.Value)">@s.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a class="btn" asp-action="Index">Reset</a>
+            </div>
+        </div>
+    </form>
+</div>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="card empty">No proposals yet.</div>
+}
+else
+{
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Proposal No</th>
+                    <th>Version</th>
+                    <th>Enquiry</th>
+                    <th>Project</th>
+                    <th>Client</th>
+                    <th>Plant</th>
+                    <th>Status</th>
+                    <th class="num">Total Cost</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Items)
+                {
+                    <tr>
+                        <td><a asp-action="Details" asp-route-id="@item.Id">@item.ProposalNo</a></td>
+                        <td>v@(item.VersionNo)</td>
+                        <td>
+                            @if (item.EnquiryId.HasValue)
+                            {
+                                <a asp-controller="Enquiry" asp-action="Details" asp-route-id="@item.EnquiryId">@item.EnquiryNo</a>
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </td>
+                        <td>@item.ProjectName</td>
+                        <td>@item.ClientName</td>
+                        <td><span class="badge">@item.PlantTypeName</span></td>
+                        <td><span class="badge">@item.StatusName</span></td>
+                        <td class="num">@item.CurrencyCode @item.TotalCost.ToString("N2")</td>
+                        <td>@item.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td class="actions">
+                            <a class="btn btn-small" asp-action="Details" asp-route-id="@item.Id">Open</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

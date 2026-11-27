@@ -1,0 +1,289 @@
+@model ProposalDetailViewModel
+@{
+    ViewData["Title"] = $"Proposal {Model.ProposalNo}";
+    var anyAction = Model.CanRecalculate || Model.CanSend || Model.CanAccept || Model.CanReject || Model.CanRevise;
+}
+
+<div class="page-head">
+    <h1>Proposal @Model.ProposalNo <small>v@(Model.VersionNo)</small></h1>
+    <div class="actions">
+        @if (Model.EnquiryId.HasValue)
+        {
+            <a class="btn" asp-controller="Enquiry" asp-action="Details" asp-route-id="@Model.EnquiryId">Enquiry</a>
+        }
+        <a class="btn" asp-action="Index">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <dt>Proposal No</dt>
+        <dd>@Model.ProposalNo</dd>
+        <dt>Version</dt>
+        <dd>v@(Model.VersionNo)</dd>
+        <dt>Status</dt>
+        <dd><span class="badge">@Model.StatusName</span></dd>
+        <dt>Enquiry</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.EnquiryNo) ? "-" : Model.EnquiryNo)</dd>
+        <dt>Project</dt>
+        <dd>@Model.ProjectName</dd>
+        <dt>Client</dt>
+        <dd>@Model.ClientName</dd>
+        <dt>Plant Type</dt>
+        <dd><span class="badge">@Model.PlantTypeName</span></dd>
+        <dt>Total Cost</dt>
+        <dd><strong>@Model.CurrencyCode @Model.TotalCost.ToString("N2")</strong></dd>
+        <dt>Created</dt>
+        <dd>@Model.CreatedAt.ToString("dd MMM yyyy HH:mm")</dd>
+    </dl>
+</div>
+
+@if (anyAction)
+{
+    <h2>Actions</h2>
+    <div class="card">
+        <form method="post">
+            <div class="form-group form-wide">
+                <label for="remarks">Remarks</label>
+                <textarea id="remarks" name="remarks" rows="2" class="form-control"></textarea>
+            </div>
+            <div class="form-actions">
+                @if (Model.CanRecalculate)
+                {
+                    <button type="submit" class="btn" asp-action="Recalculate" asp-route-id="@Model.ProposalId">Recalculate</button>
+                }
+                @if (Model.CanSend)
+                {
+                    <button type="submit" class="btn btn-primary" asp-action="Send" asp-route-id="@Model.ProposalId">Send</button>
+                }
+                @if (Model.CanAccept)
+                {
+                    <button type="submit" class="btn btn-primary" asp-action="Accept" asp-route-id="@Model.ProposalId">Accept</button>
+                }
+                @if (Model.CanReject)
+                {
+                    <button type="submit" class="btn btn-danger" asp-action="Reject" asp-route-id="@Model.ProposalId">Reject</button>
+                }
+                @if (Model.CanRevise)
+                {
+                    <button type="submit" class="btn" asp-action="Revise" asp-route-id="@Model.ProposalId">Revise</button>
+                }
+            </div>
+        </form>
+    </div>
+}
+
+<h2>Wastewater Streams</h2>
+<div class="card">
+    @if (Model.Streams.Count == 0)
+    {
+        <div class="empty">No streams.</div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Stream</th>
+                        <th class="num">Flow (m&sup3;/day)</th>
+                        <th class="num">COD</th>
+                        <th class="num">BOD</th>
+                        <th class="num">TSS</th>
+                        <th class="num">TDS</th>
+                        <th class="num">Oil &amp; Grease</th>
+                        <th class="num">pH</th>
+                        <th class="num">Temp (&deg;C)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Streams)
+                    {
+                        <tr>
+                            <td>@s.StreamName</td>
+                            <td class="num">@s.FlowM3PerDay.ToString("0.##")</td>
+                            <td class="num">@s.CodMgL.ToString("0.##")</td>
+                            <td class="num">@s.BodMgL.ToString("0.##")</td>
+                            <td class="num">@s.TssMgL.ToString("0.##")</td>
+                            <td class="num">@s.TdsMgL.ToString("0.##")</td>
+                            <td class="num">@s.OilGreaseMgL.ToString("0.##")</td>
+                            <td class="num">@s.Ph.ToString("0.##")</td>
+                            <td class="num">@s.TemperatureC.ToString("0.##")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<h2>Treatment Train</h2>
+<div class="card">
+    @if (Model.TrainOperations.Count == 0)
+    {
+        <div class="empty">No treatment train.</div>
+    }
+    else
+    {
+        <ol class="train-flow">
+            @foreach (var operation in Model.TrainOperations)
+            {
+                <li>@operation</li>
+            }
+        </ol>
+    }
+</div>
+
+<h2>Sized Equipment</h2>
+<div class="card">
+    @if (Model.Equipment.Count == 0)
+    {
+        <div class="empty">No equipment sized.</div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Tag</th>
+                        <th>Unit</th>
+                        <th>Description</th>
+                        <th>Material</th>
+                        <th>Parameters</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Equipment)
+                    {
+                        <tr>
+                            <td>@e.SequenceNo</td>
+                            <td>@e.TagNo</td>
+                            <td>@e.UnitTypeName</td>
+                            <td>@e.Description</td>
+                            <td>@e.MaterialName</td>
+                            <td>@string.Join(", ", e.Parameters.Select(p => $"{p.Key}: {p.Value:0.##}"))</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<h2>Bill of Quantities</h2>
+<div class="card">
+    @if (Model.BoqLines.Count == 0)
+    {
+        <div class="empty">No BOQ lines.</div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Tag</th>
+                        <th>Item</th>
+                        <th>Unit</th>
+                        <th class="num">Qty</th>
+                        <th class="num">Rate</th>
+                        <th class="num">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.BoqLines)
+                    {
+                        <tr>
+                            <td>@(b.TagNo ?? "-")</td>
+                            <td>@b.ItemDescription</td>
+                            <td>@b.Unit</td>
+                            <td class="num">@b.Quantity.ToString("0.##")</td>
+                            <td class="num">@b.Rate.ToString("N2")</td>
+                            <td class="num">@b.Amount.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<h2>Cost Summary</h2>
+<div class="card">
+    @if (Model.LineItems.Count == 0)
+    {
+        <div class="empty">No cost line items.</div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Unit</th>
+                        <th class="num">Qty</th>
+                        <th class="num">Rate</th>
+                        <th class="num">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model.LineItems.OrderBy(x => x.SortOrder))
+                    {
+                        <tr>
+                            <td>@l.CategoryName</td>
+                            <td>@l.Description</td>
+                            <td>@l.Unit</td>
+                            <td class="num">@l.Quantity.ToString("0.##")</td>
+                            <td class="num">@l.Rate.ToString("N2")</td>
+                            <td class="num">@l.Amount.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="5" class="num">Total</th>
+                        <th class="num">@Model.CurrencyCode @Model.TotalCost.ToString("N2")</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    }
+</div>
+
+<h2>Status History</h2>
+<div class="card">
+    @if (Model.StatusHistory.Count == 0)
+    {
+        <div class="empty">No status changes yet.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>From</th>
+                    <th>To</th>
+                    <th>By</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var h in Model.StatusHistory)
+                {
+                    <tr>
+                        <td>@h.CreatedAt.ToString("dd MMM yyyy HH:mm")</td>
+                        <td>@(h.FromStatusName ?? "-")</td>
+                        <td><span class="badge">@h.ToStatusName</span></td>
+                        <td>@(string.IsNullOrWhiteSpace(h.ChangedBy) ? "-" : h.ChangedBy)</td>
+                        <td>@(string.IsNullOrWhiteSpace(h.Remarks) ? "-" : h.Remarks)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
