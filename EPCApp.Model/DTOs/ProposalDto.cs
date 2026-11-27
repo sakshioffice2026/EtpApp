@@ -21,6 +21,7 @@ public class ProposalDto
     public decimal TotalCost { get; set; }
 
     public DateTime CreatedAt { get; set; }
+    public string? Notes { get; set; }
 
     public List<string> TrainOperations { get; set; } = new();
 

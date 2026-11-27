@@ -187,6 +187,7 @@
                         <th>Tag</th>
                         <th>Item</th>
                         <th>Unit</th>
+                        <th>Category</th>
                         <th class="num">Qty</th>
                         <th class="num">Rate</th>
                         <th class="num">Amount</th>
@@ -199,6 +200,7 @@
                             <td>@(b.TagNo ?? "-")</td>
                             <td>@b.ItemDescription</td>
                             <td>@b.Unit</td>
+                            <td>@b.CategoryName</td>
                             <td class="num">@b.Quantity.ToString("0.##")</td>
                             <td class="num">@b.Rate.ToString("N2")</td>
                             <td class="num">@b.Amount.ToString("N2")</td>

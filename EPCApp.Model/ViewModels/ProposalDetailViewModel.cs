@@ -9,7 +9,7 @@ public class ProposalDetailViewModel
     public string ProposalNo { get; set; } = string.Empty;
 
     public int VersionNo { get; set; }
-
+    public string? Notes { get; set; }
     public int Status { get; set; }
 
     public string StatusName { get; set; } = string.Empty;

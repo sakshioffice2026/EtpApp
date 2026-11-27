@@ -30,7 +30,9 @@ public class StpController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Intake(StreamInputDto model, CancellationToken cancellationToken)
     {
-        var project = await _projects.GetByIdAsync(model.ProjectId, cancellationToken);
+        if (!model.ProjectId.HasValue) return BadRequest("Project ID is required.");
+
+        var project = await _projects.GetByIdAsync(model.ProjectId.Value, cancellationToken);
         if (project is null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(model.StreamName))

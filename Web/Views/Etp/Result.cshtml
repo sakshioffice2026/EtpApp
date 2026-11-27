@@ -7,7 +7,11 @@
     <h1>ETP Proposal @Model.ProposalNo</h1>
     <a class="btn" asp-controller="Project" asp-action="Index">Projects</a>
 </div>
-
+<form asp-controller="Etp" asp-action="Recalculate" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" value="@Model.ProposalId" />
+    <button type="submit" class="btn btn-primary">Recalculate</button>
+</form>
 <div class="card">
     <dl class="detail-list">
         <dt>Project</dt>
@@ -85,6 +89,7 @@
                     <th>Tag</th>
                     <th>Item</th>
                     <th>Unit</th>
+                    <th>Category</th>
                     <th class="num">Qty</th>
                     <th class="num">Rate</th>
                     <th class="num">Amount</th>
@@ -99,6 +104,7 @@
                         <td>@b.TagNo</td>
                         <td>@b.ItemDescription</td>
                         <td>@b.Unit</td>
+                        <td>@b.CategoryName</td>
                         <td class="num">@b.Quantity.ToString("N2")</td>
                         <td class="num">@b.Rate.ToString("N2")</td>
                         <td class="num">@b.Amount.ToString("N2")</td>
@@ -111,6 +117,39 @@
                     <th class="num">@Model.CurrencyCode @Model.TotalCost.ToString("N2")</th>
                 </tr>
             </tfoot>
+        </table>
+    }
+</div>
+<h2>Proposal Line Items</h2>
+<div class="card">
+    @if (Model.LineItems == null || Model.LineItems.Count == 0)
+    {
+        <div class="empty">No additional proposal line items.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Unit</th>
+                    <th class="num">Quantity</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.LineItems)
+                {
+                    <tr>
+                        <td>@item.Description</td>
+                        <td>@item.Unit</td>
+                        <td class="num">@item.Quantity.ToString("N2")</td>
+                        <td class="num">@item.Rate.ToString("N2")</td>
+                        <td class="num">@item.Amount.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
         </table>
     }
 </div>

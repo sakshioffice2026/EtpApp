@@ -3,7 +3,7 @@ namespace EPCApp.Database.Entities;
 
 public class WastewaterStream : BaseEntity
 {
-    public long EnquiryId { get; set; }
+    public long? EnquiryId { get; set; }
 
     public long? ProjectId { get; set; }
 

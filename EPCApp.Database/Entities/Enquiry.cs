@@ -10,6 +10,8 @@ public class Enquiry : BaseEntity
 
     public string? ContactPerson { get; set; }
 
+    public DateTime EnquiryDate { get; set; } = DateTime.Today;
+
     public string? Email { get; set; }
 
     public string? Phone { get; set; }

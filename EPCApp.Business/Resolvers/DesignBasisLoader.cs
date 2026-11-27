@@ -1,4 +1,4 @@
-﻿using EPCApp.Database.Entities;
+using EPCApp.Database.Entities;
 using EPCApp.Database.Enums;
 using EPCApp.Engine.Models;
 using EPCApp.Repositories.Contracts;

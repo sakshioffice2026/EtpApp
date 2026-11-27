@@ -393,8 +393,6 @@ public sealed class ProposalService : IProposalService
         var train = pack.SelectTrain(basis);
         var sized = pack.Size(basis, train, design, plan);
         var boq = pack.BuildBoq(sized, design);
-        var boq = pack.BuildBoq(sized, new RateSheet());
-
         var trainEntity = new TreatmentTrain
         {
             TrainName = train.Name,

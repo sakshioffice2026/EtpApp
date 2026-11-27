@@ -34,6 +34,8 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.PlantType);
             e.Property(x => x.EnquiryNo).HasMaxLength(30);
             e.Property(x => x.ClientName).HasMaxLength(200);
+            e.Property(x => x.EnquiryDate)
+                .HasColumnType("date");
             e.Property(x => x.ContactPerson).HasMaxLength(150);
             e.Property(x => x.Email).HasMaxLength(150);
             e.Property(x => x.Phone).HasMaxLength(30);

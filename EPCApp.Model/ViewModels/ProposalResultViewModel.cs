@@ -40,6 +40,7 @@ public class ProposalResultViewModel
     public DateTime? RejectedAt { get; set; }
 
     public string? Remarks { get; set; }
+    public List<ProposalLineItemDto> LineItems { get; set; } = new();
 
     public List<string> TrainOperations { get; set; } = new();
 
