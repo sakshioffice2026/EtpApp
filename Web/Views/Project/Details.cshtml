@@ -1,0 +1,110 @@
+@model ProjectViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    var streams = (IReadOnlyList<StreamInputDto>)ViewBag.Streams;
+    var proposals = (IReadOnlyList<ProposalDto>)ViewBag.Proposals;
+    var controllerName = Model.PlantType == 2 ? "Stp" : Model.PlantType == 3 ? "Zld" : "Etp";
+}
+
+<div class="page-head">
+    <h1>@Model.Name</h1>
+    <div class="actions">
+        <a class="btn btn-primary" asp-controller="@controllerName" asp-action="Intake" asp-route-projectId="@Model.Id">Stream Intake</a>
+        <a class="btn" asp-action="Index">Back</a>
+    </div>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <dt>Project Code</dt>
+        <dd>@Model.ProjectCode</dd>
+        <dt>Client</dt>
+        <dd>@Model.ClientName</dd>
+        <dt>Plant Type</dt>
+        <dd><span class="badge">@Model.PlantTypeName</span></dd>
+        <dt>Industry</dt>
+        <dd>@Model.IndustryTypeName</dd>
+        <dt>ZLD Required</dt>
+        <dd>@(Model.ZldRequired ? "Yes" : "No")</dd>
+        <dt>Site Location</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.SiteLocation) ? "-" : Model.SiteLocation)</dd>
+        <dt>Remarks</dt>
+        <dd>@(string.IsNullOrWhiteSpace(Model.Remarks) ? "-" : Model.Remarks)</dd>
+    </dl>
+</div>
+
+<h2>Wastewater Streams</h2>
+<div class="card">
+    @if (streams.Count == 0)
+    {
+        <div class="empty">No streams entered yet.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Stream</th>
+                    <th>Flow (m&sup3;/day)</th>
+                    <th>COD</th>
+                    <th>BOD</th>
+                    <th>TSS</th>
+                    <th>TDS</th>
+                    <th>Oil &amp; Grease</th>
+                    <th>pH</th>
+                    <th>Temp (&deg;C)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in streams)
+                {
+                    <tr>
+                        <td>@s.StreamName</td>
+                        <td>@s.FlowM3PerDay.ToString("0.##")</td>
+                        <td>@s.CodMgL.ToString("0.##")</td>
+                        <td>@s.BodMgL.ToString("0.##")</td>
+                        <td>@s.TssMgL.ToString("0.##")</td>
+                        <td>@s.TdsMgL.ToString("0.##")</td>
+                        <td>@s.OilGreaseMgL.ToString("0.##")</td>
+                        <td>@s.Ph.ToString("0.##")</td>
+                        <td>@s.TemperatureC.ToString("0.##")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<h2>Proposals</h2>
+<div class="card">
+    @if (proposals.Count == 0)
+    {
+        <div class="empty">No proposals calculated yet.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Proposal No</th>
+                    <th>Version</th>
+                    <th>Total Cost</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in proposals)
+                {
+                    <tr>
+                        <td>@p.ProposalNo</td>
+                        <td>v@(p.VersionNo)</td>
+                        <td>@p.CurrencyCode @p.TotalCost.ToString("N2")</td>
+                        <td class="actions">
+                            <a class="btn btn-small" asp-controller="@controllerName" asp-action="Result" asp-route-id="@p.Id">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

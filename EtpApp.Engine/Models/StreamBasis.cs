@@ -1,4 +1,6 @@
 ﻿
+using EtpApp.Database.Enums;
+
 namespace EtpApp.Engine.Models;
 
 public sealed record StreamBasis(

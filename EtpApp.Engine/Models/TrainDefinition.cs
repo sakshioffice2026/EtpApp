@@ -1,4 +1,6 @@
-﻿namespace EtpApp.Engine.Models;
+﻿using EtpApp.Database.Enums;
+
+namespace EtpApp.Engine.Models;
 
 public sealed class TrainDefinition
 {

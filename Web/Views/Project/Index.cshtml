@@ -1,0 +1,54 @@
+@model List<ProjectViewModel>
+@{
+    ViewData["Title"] = "Projects";
+    int? filter = ViewBag.PlantType as int?;
+}
+
+<div class="page-head">
+    <h1>Projects@(filter.HasValue ? $" - {(filter == 1 ? "ETP" : filter == 2 ? "STP" : "ZLD")}" : "")</h1>
+    <a class="btn btn-primary" asp-action="Create" asp-route-plantType="@(filter ?? 1)">New Project</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="card empty">No projects yet.</div>
+}
+else
+{
+    <div class="card">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Client</th>
+                    <th>Plant</th>
+                    <th>Industry</th>
+                    <th>ZLD</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    var controllerName = item.PlantType == 2 ? "Stp" : item.PlantType == 3 ? "Zld" : "Etp";
+                    <tr>
+                        <td>@item.ProjectCode</td>
+                        <td><a asp-action="Details" asp-route-id="@item.Id">@item.Name</a></td>
+                        <td>@item.ClientName</td>
+                        <td><span class="badge">@item.PlantTypeName</span></td>
+                        <td>@item.IndustryTypeName</td>
+                        <td>@(item.ZldRequired ? "Yes" : "No")</td>
+                        <td class="actions">
+                            <a class="btn btn-small" asp-action="Details" asp-route-id="@item.Id">Open</a>
+                            <a class="btn btn-small btn-primary" asp-controller="@controllerName" asp-action="Intake" asp-route-projectId="@item.Id">Intake</a>
+                            <form asp-action="Delete" asp-route-id="@item.Id" method="post" class="inline-form" data-confirm="Delete this project?">
+                                <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

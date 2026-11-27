@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - EtpApp</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="container header-inner">
+            <a class="brand" asp-controller="Project" asp-action="Index">EtpApp</a>
+            <nav class="app-nav">
+                <a asp-controller="Project" asp-action="Index">Projects</a>
+                <a asp-controller="Project" asp-action="Index" asp-route-plantType="1">ETP</a>
+                <a asp-controller="Project" asp-action="Index" asp-route-plantType="2">STP</a>
+                <a asp-controller="Project" asp-action="Index" asp-route-plantType="3">ZLD</a>
+                <a class="btn btn-primary" asp-controller="Project" asp-action="Create">New Project</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container app-main">
+        @if (TempData["Error"] is string error)
+        {
+            <div class="alert alert-error">@error</div>
+        }
+        @if (TempData["Success"] is string success)
+        {
+            <div class="alert alert-success">@success</div>
+        }
+
+        @RenderBody()
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">EtpApp &middot; Wastewater treatment design and estimation</div>
+    </footer>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

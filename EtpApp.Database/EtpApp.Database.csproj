@@ -18,7 +18,5 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\EtpApp.Engine\EtpApp.Engine.csproj" />
-  </ItemGroup>
+ 
 </Project>

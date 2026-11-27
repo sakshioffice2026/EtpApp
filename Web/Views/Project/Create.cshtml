@@ -1,0 +1,72 @@
+@model ProjectViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "New Project";
+    var plantTypes = (List<SelectListItem>)ViewBag.PlantTypes;
+    var industryTypes = (List<SelectListItem>)ViewBag.IndustryTypes;
+}
+
+<div class="page-head">
+    <h1>New Project</h1>
+    <a class="btn" asp-action="Index">Back</a>
+</div>
+
+<div class="card">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-error"></div>
+
+        <div class="form-grid">
+            <div class="form-group">
+                <label asp-for="ProjectCode"></label>
+                <input asp-for="ProjectCode" class="form-control" />
+                <span asp-validation-for="ProjectCode" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="Name"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="ClientName"></label>
+                <input asp-for="ClientName" class="form-control" />
+                <span asp-validation-for="ClientName" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="PlantType"></label>
+                <select asp-for="PlantType" asp-items="plantTypes" class="form-control"></select>
+                <span asp-validation-for="PlantType" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="IndustryType"></label>
+                <select asp-for="IndustryType" asp-items="industryTypes" class="form-control"></select>
+                <span asp-validation-for="IndustryType" class="field-error"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="SiteLocation"></label>
+                <input asp-for="SiteLocation" class="form-control" />
+                <span asp-validation-for="SiteLocation" class="field-error"></span>
+            </div>
+
+            <div class="form-group form-check">
+                <input asp-for="ZldRequired" type="checkbox" />
+                <label asp-for="ZldRequired"></label>
+            </div>
+
+            <div class="form-group form-wide">
+                <label asp-for="Remarks"></label>
+                <textarea asp-for="Remarks" rows="3" class="form-control"></textarea>
+                <span asp-validation-for="Remarks" class="field-error"></span>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Create Project</button>
+            <a class="btn" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+</div>

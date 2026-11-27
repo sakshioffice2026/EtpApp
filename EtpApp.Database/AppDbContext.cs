@@ -1,12 +1,10 @@
 ﻿using EtpApp.Database.Entities;
 using Microsoft.EntityFrameworkCore;
-using EtpApp.Database.Context;
-using Microsoft.EntityFrameworkCore;
 namespace EtpApp.Database.Context;
 
-public class AppContext : DbContext
+public class AppDbContext : DbContext
 {
-    public AppContext(DbContextOptions<AppContext> options) : base(options)
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
 

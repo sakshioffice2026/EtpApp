@@ -1,0 +1,116 @@
+@model ProposalResultViewModel
+@{
+    ViewData["Title"] = "STP Result";
+}
+
+<div class="page-head">
+    <h1>STP Proposal @Model.ProposalNo</h1>
+    <a class="btn" asp-controller="Project" asp-action="Index">Projects</a>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <dt>Project</dt>
+        <dd>@Model.ProjectName</dd>
+        <dt>Client</dt>
+        <dd>@Model.ClientName</dd>
+        <dt>Plant Type</dt>
+        <dd><span class="badge">@Model.PlantTypeName</span></dd>
+        <dt>Estimated Cost</dt>
+        <dd><strong>@Model.CurrencyCode @Model.TotalCost.ToString("N2")</strong></dd>
+    </dl>
+</div>
+
+<h2>Treatment Train</h2>
+<div class="card">
+    <ol class="train-flow">
+        @foreach (var operation in Model.TrainOperations)
+        {
+            <li>@operation</li>
+        }
+    </ol>
+</div>
+
+<h2>Sized Equipment</h2>
+<div class="card">
+    @if (Model.Equipment.Count == 0)
+    {
+        <div class="empty">No equipment sized.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Tag</th>
+                    <th>Unit</th>
+                    <th>Description</th>
+                    <th>Material</th>
+                    <th>Parameters</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Equipment)
+                {
+                    <tr>
+                        <td>@e.TagNo</td>
+                        <td>@e.UnitTypeName</td>
+                        <td>@e.Description</td>
+                        <td>@e.MaterialName</td>
+                        <td>
+                            @foreach (var p in e.Parameters)
+                            {
+                                <div class="param"><span>@p.Key</span> @p.Value.ToString("0.##")</div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<h2>Bill of Quantities</h2>
+<div class="card">
+    @if (Model.BoqLines.Count == 0)
+    {
+        <div class="empty">No BOQ lines generated.</div>
+    }
+    else
+    {
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Tag</th>
+                    <th>Item</th>
+                    <th>Unit</th>
+                    <th class="num">Qty</th>
+                    <th class="num">Rate</th>
+                    <th class="num">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var i = 1; }
+                @foreach (var b in Model.BoqLines)
+                {
+                    <tr>
+                        <td>@(i++)</td>
+                        <td>@b.TagNo</td>
+                        <td>@b.ItemDescription</td>
+                        <td>@b.Unit</td>
+                        <td class="num">@b.Quantity.ToString("N2")</td>
+                        <td class="num">@b.Rate.ToString("N2")</td>
+                        <td class="num">@b.Amount.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="6" class="num">Total</th>
+                    <th class="num">@Model.CurrencyCode @Model.TotalCost.ToString("N2")</th>
+                </tr>
+            </tfoot>
+        </table>
+    }
+</div>
