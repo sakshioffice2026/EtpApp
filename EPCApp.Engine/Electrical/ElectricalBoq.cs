@@ -59,6 +59,16 @@ public static class ElectricalBoq
         {
             switch (item.Type)
             {
+                case UnitOperationType.ScreenChamber:
+                    levelCount += 1;
+                    break;
+                case UnitOperationType.OilGreaseTrap:
+                    levelCount += 1;
+                    break;
+                case UnitOperationType.ChemicalDosing:
+                    levelCount += 1;
+                    flowCount += 1;
+                    break;
                 case UnitOperationType.Equalization:
                     levelCount += 1;
                     flowCount += 1;
@@ -83,6 +93,22 @@ public static class ElectricalBoq
                     flowCount += 1;
                     break;
                 case UnitOperationType.FilterPress:
+                    pressureCount += 1;
+                    break;
+                case UnitOperationType.PressureSandFilter:
+                case UnitOperationType.ActivatedCarbonFilter:
+                case UnitOperationType.UltraFiltration:
+                    flowCount += 1;
+                    pressureCount += 2;
+                    break;
+                case UnitOperationType.ReverseOsmosis:
+                    flowCount += 2;
+                    pressureCount += 3;
+                    phCount += 1;
+                    break;
+                case UnitOperationType.MultiEffectEvaporator:
+                    levelCount += 1;
+                    flowCount += 1;
                     pressureCount += 1;
                     break;
                 case UnitOperationType.Softener:

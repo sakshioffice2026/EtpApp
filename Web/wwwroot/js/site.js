@@ -88,10 +88,82 @@
         });
     }
 
+    function initUnitPanel() {
+        var host = document.getElementById('unit-panel-host');
+        if (!host) return;
+
+        var links = document.querySelectorAll('[data-unit-link]');
+        var requestId = 0;
+
+        function setActive(link) {
+            Array.prototype.forEach.call(links, function (l) {
+                var li = l.closest('li');
+                var on = l === link;
+                if (li) li.classList.toggle('is-active', on);
+                if (on) {
+                    l.setAttribute('aria-current', 'true');
+                } else {
+                    l.removeAttribute('aria-current');
+                }
+            });
+        }
+
+        function closePanel() {
+            requestId++;
+            host.hidden = true;
+            host.innerHTML = '';
+            setActive(null);
+        }
+
+        function openPanel(link) {
+            var url = link.getAttribute('data-panel-url');
+            if (!url) {
+                window.location.href = link.href;
+                return;
+            }
+
+            var id = ++requestId;
+            setActive(link);
+            host.hidden = false;
+            host.innerHTML = '<div class="card"><div class="empty">Loading ' + link.getAttribute('data-unit') + '...</div></div>';
+
+            fetch(url, { credentials: 'same-origin' })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('Request failed');
+                    return r.text();
+                })
+                .then(function (html) {
+                    if (id !== requestId) return;
+                    host.innerHTML = html;
+                    host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                })
+                .catch(function () {
+                    if (id !== requestId) return;
+                    window.location.href = link.href;
+                });
+        }
+
+        document.addEventListener('click', function (e) {
+            var closeBtn = e.target.closest('[data-unit-close]');
+            if (closeBtn && host.contains(closeBtn)) {
+                closePanel();
+                return;
+            }
+
+            var link = e.target.closest('[data-unit-link]');
+            if (!link) return;
+            if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+
+            e.preventDefault();
+            openPanel(link);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initTopbar();
         initFlash();
         initConfirm();
         initStreamRows();
+        initUnitPanel();
     });
 })();

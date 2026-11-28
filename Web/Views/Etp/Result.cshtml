@@ -30,10 +30,20 @@
     <ol class="train-flow">
         @foreach (var operation in Model.TrainOperations)
         {
-            <li><a asp-controller="Unit" asp-action="Detail" asp-route-proposalId="@Model.ProposalId" asp-route-unit="@operation">@operation</a></li>
+            <li>
+                <a asp-controller="Unit"
+                   asp-action="Detail"
+                   asp-route-proposalId="@Model.ProposalId"
+                   asp-route-unit="@operation"
+                   data-unit-link
+                   data-unit="@operation"
+                   data-panel-url="@Url.Action("Panel", "Unit", new { proposalId = Model.ProposalId, unit = operation })">@operation</a>
+            </li>
         }
     </ol>
 </div>
+
+<div id="unit-panel-host" class="unit-panel-host" aria-live="polite" hidden></div>
 
 <h2>Sized Equipment</h2>
 <div class="card">

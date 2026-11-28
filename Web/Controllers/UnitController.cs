@@ -17,17 +17,34 @@ public class UnitController : Controller
     [HttpGet]
     public async Task<IActionResult> Detail(long proposalId, string unit, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(unit)) return NotFound();
+        var model = await BuildModelAsync(proposalId, unit, cancellationToken);
+        if (model is null) return NotFound();
+
+        return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Panel(long proposalId, string unit, CancellationToken cancellationToken)
+    {
+        var model = await BuildModelAsync(proposalId, unit, cancellationToken);
+        if (model is null) return NotFound();
+
+        return PartialView("_UnitDetailPanel", model);
+    }
+
+    private async Task<UnitDetailViewModel?> BuildModelAsync(long proposalId, string unit, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(unit)) return null;
 
         var proposal = await _proposals.GetByIdAsync(proposalId, cancellationToken);
-        if (proposal is null || !proposal.ProjectId.HasValue) return NotFound();
+        if (proposal is null || !proposal.ProjectId.HasValue) return null;
 
         var result = await _proposals.GetResultAsync(proposalId, cancellationToken);
-        if (result is null) return NotFound();
+        if (result is null) return null;
 
         var unitName = result.TrainOperations
             .FirstOrDefault(x => string.Equals(x, unit, StringComparison.OrdinalIgnoreCase));
-        if (unitName is null) return NotFound();
+        if (unitName is null) return null;
 
         var model = new UnitDetailViewModel
         {
@@ -67,6 +84,6 @@ public class UnitController : Controller
             });
         }
 
-        return View(model);
+        return model;
     }
 }

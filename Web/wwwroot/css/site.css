@@ -818,6 +818,36 @@ form > h2 {
             background: var(--bp-grad-flow);
         }
 
+        .train-flow li.is-active {
+            border-color: transparent;
+            background: var(--bp-grad-deep);
+            box-shadow: 0 4px 12px rgba(20, 40, 90, .22);
+        }
+
+            .train-flow li.is-active a {
+                color: #fff;
+            }
+
+            .train-flow li.is-active::before {
+                background: #fff;
+                color: #0369A1;
+            }
+
+.unit-panel-host {
+    margin-top: 1rem;
+    scroll-margin-top: 80px;
+}
+
+    .unit-panel-host[hidden] {
+        display: none;
+    }
+
+    .unit-panel-host h3 small,
+    .unit-panel-host h2 small {
+        font-weight: 400;
+        color: var(--bp-ink-mute);
+    }
+
 .param {
     font-size: .85rem;
     color: var(--bp-ink);
