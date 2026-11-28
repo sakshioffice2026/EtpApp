@@ -60,6 +60,64 @@ public class ZldController : Controller
         return RedirectToAction(nameof(Intake), new { projectId });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> EditStream(long id, long projectId, CancellationToken cancellationToken)
+    {
+        var streams = await _projects.GetStreamsAsync(projectId, cancellationToken);
+        var stream = streams.FirstOrDefault(x => x.Id == id);
+
+        if (stream is null) return NotFound();
+
+        await LoadIntakeAsync(
+            await _projects.GetByIdAsync(projectId, cancellationToken)
+                ?? throw new InvalidOperationException("Project not found."),
+            cancellationToken);
+
+        return View(stream);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditStream(StreamInputDto model, CancellationToken cancellationToken)
+    {
+        if (!model.ProjectId.HasValue) return NotFound();
+
+        var project = await _projects.GetByIdAsync(model.ProjectId.Value, cancellationToken);
+        if (project is null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(model.StreamName))
+            ModelState.AddModelError(nameof(model.StreamName), "Stream name is required.");
+
+        if (model.FlowM3PerDay <= 0)
+            ModelState.AddModelError(nameof(model.FlowM3PerDay), "Flow must be greater than zero.");
+
+        if (!ModelState.IsValid)
+        {
+            await LoadIntakeAsync(project, cancellationToken);
+            return View(model);
+        }
+
+        await _projects.SaveStreamAsync(model, cancellationToken);
+
+        return RedirectToAction(nameof(Intake), new { projectId = model.ProjectId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Recalculate(long id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _proposals.RecalculateAsync(id, cancellationToken);
+            return RedirectToAction(nameof(Result), new { id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Result), new { id });
+        }
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Calculate(long projectId, CancellationToken cancellationToken)

@@ -1,0 +1,171 @@
+@model UnitDetailViewModel
+@{
+    ViewData["Title"] = Model.UnitTypeName;
+}
+
+<div class="page-head">
+    <h1>@Model.UnitTypeName <small>@Model.ProposalNo</small></h1>
+    <a class="btn" asp-controller="@Model.PlantController" asp-action="Result" asp-route-id="@Model.ProposalId">Back to Result</a>
+</div>
+
+<div class="card">
+    <dl class="detail-list">
+        <dt>Project</dt>
+        <dd>@Model.ProjectName</dd>
+        <dt>Client</dt>
+        <dd>@Model.ClientName</dd>
+        <dt>Plant Type</dt>
+        <dd><span class="badge">@Model.PlantTypeName</span></dd>
+        <dt>Purpose</dt>
+        <dd>@Model.Purpose</dd>
+    </dl>
+</div>
+
+@if (Model.Sections.Count == 0)
+{
+    <div class="card">
+        <div class="empty">No equipment sized for this unit.</div>
+    </div>
+}
+
+@foreach (var eq in Model.Sections)
+{
+    <h2>@eq.Tag <small>@eq.Description</small></h2>
+
+    <div class="card">
+        <dl class="detail-list">
+            <dt>Tag</dt>
+            <dd>@eq.Tag</dd>
+            <dt>Description</dt>
+            <dd>@eq.Description</dd>
+            <dt>Material</dt>
+            <dd>@eq.MaterialName</dd>
+        </dl>
+    </div>
+
+    @if (eq.Inputs.Count > 0)
+    {
+        <h3>Inputs Used</h3>
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Input</th>
+                        <th class="num">Value</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var input in eq.Inputs)
+                    {
+                        <tr>
+                            <td>@input.Label</td>
+                            <td class="num">@input.Value</td>
+                            <td>@input.Unit</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @if (eq.Steps.Count > 0)
+    {
+        <h3>Calculation Steps</h3>
+        <div class="card">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Step</th>
+                        <th>Formula</th>
+                        <th>Numbers Put In</th>
+                        <th class="num">Result</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var step in eq.Steps)
+                    {
+                        <tr>
+                            <td>@step.Number</td>
+                            <td>
+                                @step.Title
+                                @if (!string.IsNullOrWhiteSpace(step.Note))
+                                {
+                                    <div class="param"><span>Note</span> @step.Note</div>
+                                }
+                            </td>
+                            <td>@step.Formula</td>
+                            <td>@step.Substitution</td>
+                            <td class="num"><strong>@step.Result</strong></td>
+                            <td>@step.Unit</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h3>Equipment Parameters</h3>
+    <div class="card">
+        @if (eq.Parameters.Count == 0)
+        {
+            <div class="empty">No parameters saved.</div>
+        }
+        else
+        {
+            @foreach (var p in eq.Parameters)
+            {
+                <div class="param"><span>@p.Key</span> @p.Value.ToString("0.##")</div>
+            }
+        }
+    </div>
+
+    <h3>BOQ Lines</h3>
+    <div class="card">
+        @if (eq.BoqLines.Count == 0)
+        {
+            <div class="empty">No BOQ lines for this equipment.</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item</th>
+                        <th>Unit</th>
+                        <th>Category</th>
+                        <th class="num">Qty</th>
+                        <th class="num">Rate</th>
+                        <th class="num">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        var i = 1;
+                    }
+                    @foreach (var b in eq.BoqLines)
+                    {
+                        <tr>
+                            <td>@(i++)</td>
+                            <td>@b.ItemDescription</td>
+                            <td>@b.Unit</td>
+                            <td>@b.CategoryName</td>
+                            <td class="num">@b.Quantity.ToString("N2")</td>
+                            <td class="num">@b.Rate.ToString("N2")</td>
+                            <td class="num">@b.Amount.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="6" class="num">Total</th>
+                        <th class="num">@eq.BoqLines.Sum(x => x.Amount).ToString("N2")</th>
+                    </tr>
+                </tfoot>
+            </table>
+        }
+    </div>
+}

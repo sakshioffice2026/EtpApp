@@ -1,17 +1,22 @@
-﻿
-using EPCApp.Database.Enums;
+﻿using EPCApp.Database.Enums;
 using EPCApp.Engine.Abstractions;
 using EPCApp.Engine.Civil;
 using EPCApp.Engine.Costing;
+using EPCApp.Engine.Electrical;
+using EPCApp.Engine.Mechanical;
 using EPCApp.Engine.Models;
+using EPCApp.Engine.Sizing.Biology;
 using EPCApp.Engine.Sizing.Clarifiers;
+using EPCApp.Engine.Sizing.Sludge;
 using EPCApp.Engine.Sizing.Tanks;
+using EPCApp.Engine.Sizing.Tertiary;
 
 namespace EPCApp.RulePacks.Stp;
 
 public sealed class StpRulePack : IPlantRulePack
 {
     private const double DefaultSewageBodMgL = 250;
+    private const double DefaultSewageCodMgL = 500;
     private const double OilGreaseTrapTriggerMgL = 50;
     private const double MbbrFlowTriggerM3PerDay = 100;
     private const double TdsReuseTriggerMgL = 2000;
@@ -58,23 +63,60 @@ public sealed class StpRulePack : IPlantRulePack
     public IReadOnlyList<SizedEquipment> Size(StreamBasis basis, TrainDefinition train, DesignBasis design, TrainPlan plan)
     {
         var equipment = new List<SizedEquipment>();
+
+        plan.InletFlowM3PerDay = Math.Round(basis.FlowM3PerDay, 2);
+        plan.TreatedWaterM3PerDay = Math.Round(basis.FlowM3PerDay, 2);
+
         var bodIn = basis.BodMgL > 0 ? basis.BodMgL : DefaultSewageBodMgL;
+        var codIn = basis.CodMgL > 0 ? basis.CodMgL : DefaultSewageCodMgL;
+        var hasThickener = false;
+        var hasFilterPress = false;
 
         foreach (var operation in train.Operations)
         {
             switch (operation)
             {
                 case UnitOperationType.Equalization:
-                    equipment.Add(EqualizationTankSizer.Size("EQ-101", basis.FlowM3PerDay));
+                    equipment.Add(EqualizationTankSizer.Size("EQ-101", basis.FlowM3PerDay, design));
                     break;
 
                 case UnitOperationType.Aeration:
-                    equipment.Add(AerationTankSizer.Size("AT-201", basis.FlowM3PerDay, bodIn));
+                    equipment.Add(AerationTankSizer.Size("AT-201", basis.FlowM3PerDay, bodIn, design));
+                    break;
+
+                case UnitOperationType.Mbbr:
+                    equipment.Add(MbbrSizer.Size("MB-201", basis.FlowM3PerDay, codIn, design));
                     break;
 
                 case UnitOperationType.SecondaryClarifier:
-                    equipment.Add(ClarifierSizer.Size("SC-301", basis.FlowM3PerDay));
+                    equipment.Add(ClarifierSizer.Size("SC-301", basis.FlowM3PerDay, design));
                     break;
+
+                case UnitOperationType.Disinfection:
+                    equipment.Add(DisinfectionSizer.Size("DIS-401", basis.FlowM3PerDay, design));
+                    break;
+
+                case UnitOperationType.SludgeThickener:
+                    hasThickener = true;
+                    break;
+
+                case UnitOperationType.FilterPress:
+                    hasFilterPress = true;
+                    break;
+            }
+        }
+
+        if (hasThickener || hasFilterPress)
+        {
+            SludgeBalance.Compute(equipment, basis, design, plan);
+
+            if (plan.SludgeDryKgPerDay > 0)
+            {
+                if (hasThickener)
+                    equipment.Add(SludgeThickenerSizer.Size("ST-501", plan, design));
+
+                if (hasFilterPress)
+                    equipment.Add(FilterPressSizer.Size("FP-502", plan, design));
             }
         }
 
@@ -83,10 +125,11 @@ public sealed class StpRulePack : IPlantRulePack
 
     public IReadOnlyList<BoqLineItem> BuildBoq(IEnumerable<SizedEquipment> equipment, DesignBasis design)
     {
+        var list = equipment.ToList();
         var rates = design.Civil;
         var lines = new List<BoqLineItem>();
 
-        foreach (var item in equipment)
+        foreach (var item in list.Where(x => x.Material == MaterialOfConstruction.RccM30))
         {
             var p = item.Parameters;
 
@@ -104,6 +147,12 @@ public sealed class StpRulePack : IPlantRulePack
                 lines.AddRange(CivilBoq.Rectangular(item.Tag, length, width, depth, rates));
             }
         }
+
+        var mechanical = MechanicalBoq.Build(list, design);
+        var electrical = ElectricalBoq.Build(list, mechanical, design);
+
+        lines.AddRange(mechanical);
+        lines.AddRange(electrical);
 
         return lines;
     }
