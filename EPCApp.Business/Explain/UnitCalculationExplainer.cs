@@ -38,6 +38,14 @@ public static class UnitCalculationExplainer
 
         switch (unitTypeName)
         {
+            case "ScreenChamber": ScreenChamber(c); break;
+            case "OilGreaseTrap": OilGreaseTrap(c); break;
+            case "ChemicalDosing": ChemicalDosing(c); break;
+            case "PressureSandFilter": PressureSandFilter(c); break;
+            case "ActivatedCarbonFilter": ActivatedCarbonFilter(c); break;
+            case "UltraFiltration": UltraFiltration(c); break;
+            case "ReverseOsmosis": ReverseOsmosis(c); break;
+            case "MultiEffectEvaporator": MultiEffectEvaporator(c); break;
             case "Equalization": Equalization(c); break;
             case "Aeration": Aeration(c); break;
             case "Mbbr": Mbbr(c); break;
@@ -55,6 +63,253 @@ public static class UnitCalculationExplainer
         }
 
         return new UnitExplanation { Inputs = c.Inputs, Steps = c.Steps };
+    }
+
+    private static void ScreenChamber(Ctx c)
+    {
+        c.In("Flow", "FlowM3PerDay", "m³/day");
+        c.In("Peak factor", "PeakFactor", "");
+        c.In("Approach velocity", "ApproachVelocityMPerSec", "m/s");
+        c.In("Water depth", "WaterDepthM", "m");
+        c.In("Clear bar spacing", "ClearSpacingMm", "mm");
+        c.In("Bar thickness", "BarThicknessMm", "mm");
+
+        c.Step("Peak flow", "Peak flow = flow ÷ seconds per day × peak factor",
+            $"{c.N("FlowM3PerDay")} ÷ seconds per day × {c.N("PeakFactor")}", "PeakFlowM3PerSec", "m³/s");
+        c.Step("Flow area", "Area = peak flow ÷ approach velocity",
+            $"{c.N("PeakFlowM3PerSec")} ÷ {c.N("ApproachVelocityMPerSec")}", "FlowAreaM2", "m²");
+        c.Add("Channel width", "Width = flow area ÷ water depth, rounded up to the next practical size",
+            $"{c.N("FlowAreaM2")} ÷ {c.N("WaterDepthM")}", c.N("WidthM"), "m");
+        c.Add("Channel size", "Length × width × total depth (water depth + freeboard)",
+            $"{c.N("LengthM")} × {c.N("WidthM")} × {c.N("DepthM")}",
+            $"{c.N("LengthM")} × {c.N("WidthM")} × {c.N("DepthM")}", "m (L × W × D)");
+        c.Step("Number of bars", "Bars = (channel width − clear spacing) ÷ (clear spacing + bar thickness), rounded down",
+            $"(channel width {c.N("WidthM")} m − {c.N("ClearSpacingMm")} mm) ÷ ({c.N("ClearSpacingMm")} mm + {c.N("BarThicknessMm")} mm)",
+            "BarCount", "no.");
+
+        var rate = Div(c.V("ScreeningsM3PerDay"), c.V("FlowM3PerDay"));
+        c.Step("Screenings", "Screenings = flow × screenings per m³ of flow",
+            $"{c.N("FlowM3PerDay")} × {Fmt(rate)}", "ScreeningsM3PerDay", "m³/day");
+    }
+
+    private static void OilGreaseTrap(Ctx c)
+    {
+        c.In("Flow", "FlowM3PerDay", "m³/day");
+        c.In("Inlet oil & grease", "OilGreaseInMgL", "mg/L");
+        c.In("Peak factor", "PeakFactor", "");
+        c.In("Retention time", "RetentionMinutes", "min");
+        c.In("Water depth", "WaterDepthM", "m");
+        c.In("Removal fraction", "RemovalFraction", "");
+
+        c.Step("Peak flow", "Peak flow = flow ÷ hours per day × peak factor",
+            $"{c.N("FlowM3PerDay")} ÷ hours per day × {c.N("PeakFactor")}", "PeakFlowM3PerHour", "m³/h");
+        c.Step("Trap volume", "Volume = peak flow × retention time ÷ minutes per hour",
+            $"{c.N("PeakFlowM3PerHour")} × {c.N("RetentionMinutes")} ÷ minutes per hour", "VolumeM3", "m³");
+        Rect(c);
+        c.Step("Oil load", "Oil load = flow × inlet oil & grease ÷ mg per kg conversion",
+            $"{c.N("FlowM3PerDay")} × {c.N("OilGreaseInMgL")} ÷ conversion", "OilLoadKgPerDay", "kg/day");
+        c.Step("Oil removed", "Oil removed = oil load × removal fraction",
+            $"{c.N("OilLoadKgPerDay")} × {c.N("RemovalFraction")}", "OilRemovedKgPerDay", "kg/day");
+        c.Step("Outlet oil & grease", "Outlet = inlet × (1 − removal fraction)",
+            $"{c.N("OilGreaseInMgL")} × (1 − {c.N("RemovalFraction")})", "OilGreaseOutMgL", "mg/L");
+    }
+
+    private static void ChemicalDosing(Ctx c)
+    {
+        c.In("Flow", "FlowM3PerDay", "m³/day");
+        c.In("Dose", "DoseMgL", "mg/L");
+        c.In("Solution strength", "StrengthFraction", "");
+        c.In("Solution density", "DensityKgPerL", "kg/L");
+        c.In("Storage", "StorageDays", "days");
+        c.In("Pump margin", "PumpMargin", "");
+        c.In("Tank fill fraction", "TankFillFraction", "");
+
+        c.Step("Reagent quantity", "Reagent = flow × dose ÷ mg per kg conversion",
+            $"{c.N("FlowM3PerDay")} × {c.N("DoseMgL")} ÷ conversion", "ReagentKgPerDay", "kg/day");
+        c.Step("Solution mass", "Solution = reagent ÷ solution strength",
+            $"{c.N("ReagentKgPerDay")} ÷ {c.N("StrengthFraction")}", "SolutionKgPerDay", "kg/day");
+        c.Step("Solution volume", "Volume = solution mass ÷ solution density",
+            $"{c.N("SolutionKgPerDay")} ÷ {c.N("DensityKgPerL")}", "SolutionLPerDay", "L/day");
+        c.Step("Solution per hour", "Per hour = solution volume ÷ hours per day",
+            $"{c.N("SolutionLPerDay")} ÷ hours per day", "SolutionLPerHour", "L/h");
+        c.Step("Dosing pump capacity", "Pump = solution per hour × pump margin",
+            $"{c.N("SolutionLPerHour")} × {c.N("PumpMargin")}", "DosingPumpLPerHour", "L/h");
+        c.Step("Storage tank volume", "Tank = solution volume × storage days ÷ litres per m³ ÷ tank fill fraction",
+            $"{c.N("SolutionLPerDay")} × {c.N("StorageDays")} ÷ litres per m³ ÷ {c.N("TankFillFraction")}",
+            "TankVolumeM3", "m³");
+    }
+
+    private static void PressureSandFilter(Ctx c)
+    {
+        c.In("Flow", "FlowM3PerDay", "m³/day");
+        c.In("Operating hours", "OperatingHoursPerDay", "h/day");
+        c.In("Filtration rate", "FiltrationRateMPerHour", "m/h");
+        c.In("Media depth", "MediaDepthM", "m");
+        c.In("Backwash rate", "BackwashRateMPerHour", "m/h");
+        c.In("Backwash time", "BackwashMinutes", "min");
+
+        c.Step("Flow per hour", "Flow per hour = flow ÷ operating hours",
+            $"{c.N("FlowM3PerDay")} ÷ {c.N("OperatingHoursPerDay")}", "FlowM3PerHour", "m³/h");
+        c.Step("Required filter area", "Area = flow per hour ÷ filtration rate",
+            $"{c.N("FlowM3PerHour")} ÷ {c.N("FiltrationRateMPerHour")}", "RequiredAreaM2", "m²");
+        c.Step("Duty vessels", "Duty vessels = required area ÷ maximum area of one vessel, rounded up",
+            $"{c.N("RequiredAreaM2")} m² split into {c.N("DutyUnits")} duty vessel(s)", "DutyUnits", "no.");
+        c.Step("Vessel diameter", "Diameter = √(4 × (required area ÷ duty vessels) ÷ π), rounded up to the next practical size",
+            $"√(4 × ({c.N("RequiredAreaM2")} ÷ {c.N("DutyUnits")}) ÷ π)", "VesselDiameterM", "m");
+        c.Step("Area of one vessel", "Area = π × diameter² ÷ 4",
+            $"π × {c.N("VesselDiameterM")}² ÷ 4", "AreaPerUnitM2", "m²");
+        c.Step("Total vessels", "Total vessels = duty vessels + standby",
+            $"{c.N("DutyUnits")} duty + {c.N("StandbyUnits")} standby", "Units", "no.");
+        c.Step("Media volume", "Media = area of one vessel × media depth × total vessels",
+            $"{c.N("AreaPerUnitM2")} × {c.N("MediaDepthM")} × {c.N("Units")}", "MediaVolumeM3", "m³");
+        c.Step("Backwash flow", "Backwash flow = area of one vessel × backwash rate",
+            $"{c.N("AreaPerUnitM2")} × {c.N("BackwashRateMPerHour")}", "BackwashFlowM3PerHour", "m³/h");
+        c.Step("Backwash volume", "Volume = backwash flow × backwash time ÷ minutes per hour",
+            $"{c.N("BackwashFlowM3PerHour")} × {c.N("BackwashMinutes")} ÷ minutes per hour", "BackwashVolumeM3", "m³");
+    }
+
+    private static void ActivatedCarbonFilter(Ctx c)
+    {
+        c.In("Flow", "FlowM3PerDay", "m³/day");
+        c.In("Operating hours", "OperatingHoursPerDay", "h/day");
+        c.In("Filtration rate", "FiltrationRateMPerHour", "m/h");
+        c.In("Minimum contact time (EBCT)", "MinEbctMinutes", "min");
+        c.In("Carbon density", "CarbonDensityKgPerM3", "kg/m³");
+
+        c.Step("Flow per hour", "Flow per hour = flow ÷ operating hours",
+            $"{c.N("FlowM3PerDay")} ÷ {c.N("OperatingHoursPerDay")}", "FlowM3PerHour", "m³/h");
+        c.Step("Required filter area", "Area = flow per hour ÷ filtration rate",
+            $"{c.N("FlowM3PerHour")} ÷ {c.N("FiltrationRateMPerHour")}", "RequiredAreaM2", "m²");
+        c.Step("Duty vessels", "Duty vessels = required area ÷ maximum area of one vessel, rounded up",
+            $"{c.N("RequiredAreaM2")} m² split into {c.N("DutyUnits")} duty vessel(s)", "DutyUnits", "no.");
+        c.Step("Vessel diameter", "Diameter = √(4 × (required area ÷ duty vessels) ÷ π), rounded up to the next practical size",
+            $"√(4 × ({c.N("RequiredAreaM2")} ÷ {c.N("DutyUnits")}) ÷ π)", "VesselDiameterM", "m");
+        c.Step("Area of one vessel", "Area = π × diameter² ÷ 4",
+            $"π × {c.N("VesselDiameterM")}² ÷ 4", "AreaPerUnitM2", "m²");
+        c.Step("Bed depth", "Bed depth is raised if needed so the contact time meets the minimum",
+            $"Minimum contact time {c.N("MinEbctMinutes")} min at {c.N("FlowM3PerHour")} m³/h", "MediaDepthM", "m");
+        c.Step("Contact time (EBCT)", "EBCT = (area of one vessel × bed depth × duty vessels) ÷ flow per hour × minutes per hour",
+            $"({c.N("AreaPerUnitM2")} × {c.N("MediaDepthM")} × {c.N("DutyUnits")}) ÷ {c.N("FlowM3PerHour")} × minutes per hour",
+            "EbctMinutes", "min");
+        c.Step("Total vessels", "Total vessels = duty vessels + standby",
+            $"{c.N("DutyUnits")} duty + {c.N("StandbyUnits")} standby", "Units", "no.");
+        c.Step("Carbon volume", "Carbon = area of one vessel × bed depth × total vessels",
+            $"{c.N("AreaPerUnitM2")} × {c.N("MediaDepthM")} × {c.N("Units")}", "MediaVolumeM3", "m³");
+        c.Step("Carbon mass", "Mass = carbon volume × carbon density",
+            $"{c.N("MediaVolumeM3")} × {c.N("CarbonDensityKgPerM3")}", "CarbonKg", "kg");
+    }
+
+    private static void UltraFiltration(Ctx c)
+    {
+        c.In("Feed", "FlowM3PerDay", "m³/day");
+        c.In("Recovery", "RecoveryFraction", "");
+        c.In("Design flux", "DesignFluxLmh", "L/m²/h");
+        c.In("Operating hours", "OperatingHoursPerDay", "h/day");
+        c.In("Module area", "ModuleAreaM2", "m²");
+        c.In("Backwash flux", "BackwashFluxLmh", "L/m²/h");
+
+        c.Step("Permeate", "Permeate = feed × recovery",
+            $"{c.N("FlowM3PerDay")} × {c.N("RecoveryFraction")}", "PermeateM3PerDay", "m³/day");
+        c.Step("Reject", "Reject = feed − permeate",
+            $"{c.N("FlowM3PerDay")} − {c.N("PermeateM3PerDay")}", "RejectM3PerDay", "m³/day");
+        c.Step("Permeate per hour", "Per hour = permeate ÷ operating hours",
+            $"{c.N("PermeateM3PerDay")} ÷ {c.N("OperatingHoursPerDay")}", "PermeateM3PerHour", "m³/h");
+        c.Step("Required membrane area", "Area = permeate per hour × litres per m³ ÷ design flux",
+            $"{c.N("PermeateM3PerHour")} × litres per m³ ÷ {c.N("DesignFluxLmh")}", "RequiredAreaM2", "m²");
+        c.Step("Number of modules", "Modules = required area ÷ module area, rounded up",
+            $"{c.N("RequiredAreaM2")} ÷ {c.N("ModuleAreaM2")}", "Modules", "no.");
+        c.Step("Installed membrane area", "Installed area = modules × module area",
+            $"{c.N("Modules")} × {c.N("ModuleAreaM2")}", "InstalledAreaM2", "m²");
+        c.Step("Operating flux", "Flux = permeate per hour × litres per m³ ÷ installed area",
+            $"{c.N("PermeateM3PerHour")} × litres per m³ ÷ {c.N("InstalledAreaM2")}", "OperatingFluxLmh", "L/m²/h");
+        c.Step("Backwash flow", "Backwash flow = installed area × backwash flux ÷ litres per m³",
+            $"{c.N("InstalledAreaM2")} × {c.N("BackwashFluxLmh")} ÷ litres per m³", "BackwashFlowM3PerHour", "m³/h");
+        c.Step("Backwash volume", "Volume = backwash flow × backwash time ÷ seconds per hour",
+            $"{c.N("BackwashFlowM3PerHour")} × backwash time ÷ seconds per hour", "BackwashVolumeM3", "m³",
+            "Backwash time and interval come from the design rules.");
+        c.Step("Backwashes per day", "Backwashes = operating hours × minutes per hour ÷ backwash interval",
+            $"{c.N("OperatingHoursPerDay")} × minutes per hour ÷ backwash interval", "BackwashesPerDay", "per day");
+    }
+
+    private static void ReverseOsmosis(Ctx c)
+    {
+        c.In("Feed", "FlowM3PerDay", "m³/day");
+        c.In("Feed TDS", "FeedTdsMgL", "mg/L");
+        c.In("Recovery", "RecoveryFraction", "");
+        c.In("Salt rejection", "RejectionFraction", "");
+        c.In("Design flux", "DesignFluxLmh", "L/m²/h");
+        c.In("Operating hours", "OperatingHoursPerDay", "h/day");
+        c.In("Element area", "ElementAreaM2", "m²");
+        c.In("Elements per vessel", "ElementsPerVessel", "no.");
+        c.In("Net driving pressure", "NetDrivingPressureBar", "bar");
+        c.In("Pump efficiency", "PumpEfficiency", "");
+
+        c.Step("Permeate", "Permeate = feed × recovery",
+            $"{c.N("FlowM3PerDay")} × {c.N("RecoveryFraction")}", "PermeateM3PerDay", "m³/day");
+        c.Step("Reject", "Reject = feed − permeate",
+            $"{c.N("FlowM3PerDay")} − {c.N("PermeateM3PerDay")}", "RejectM3PerDay", "m³/day");
+        c.Step("Permeate TDS", "Permeate TDS = feed TDS × (1 − salt rejection)",
+            $"{c.N("FeedTdsMgL")} × (1 − {c.N("RejectionFraction")})", "PermeateTdsMgL", "mg/L");
+        c.Step("Reject TDS", "Reject TDS = (feed TDS × feed − permeate TDS × permeate) ÷ reject",
+            $"({c.N("FeedTdsMgL")} × {c.N("FlowM3PerDay")} − {c.N("PermeateTdsMgL")} × {c.N("PermeateM3PerDay")}) ÷ {c.N("RejectM3PerDay")}",
+            "RejectTdsMgL", "mg/L");
+        c.Step("Feed per hour", "Per hour = feed ÷ operating hours",
+            $"{c.N("FlowM3PerDay")} ÷ {c.N("OperatingHoursPerDay")}", "FeedM3PerHour", "m³/h");
+        c.Step("Permeate per hour", "Per hour = permeate ÷ operating hours",
+            $"{c.N("PermeateM3PerDay")} ÷ {c.N("OperatingHoursPerDay")}", "PermeateM3PerHour", "m³/h");
+        c.Step("Required membrane area", "Area = permeate per hour × litres per m³ ÷ design flux",
+            $"{c.N("PermeateM3PerHour")} × litres per m³ ÷ {c.N("DesignFluxLmh")}", "RequiredAreaM2", "m²");
+        c.Step("Number of vessels", "Vessels = (required area ÷ element area) ÷ elements per vessel, rounded up",
+            $"({c.N("RequiredAreaM2")} ÷ {c.N("ElementAreaM2")}) ÷ {c.N("ElementsPerVessel")}", "Vessels", "no.");
+        c.Step("Number of elements", "Elements = vessels × elements per vessel",
+            $"{c.N("Vessels")} × {c.N("ElementsPerVessel")}", "Elements", "no.");
+        c.Step("Installed membrane area", "Installed area = elements × element area",
+            $"{c.N("Elements")} × {c.N("ElementAreaM2")}", "InstalledAreaM2", "m²");
+        c.Step("Operating flux", "Flux = permeate per hour × litres per m³ ÷ installed area",
+            $"{c.N("PermeateM3PerHour")} × litres per m³ ÷ {c.N("InstalledAreaM2")}", "OperatingFluxLmh", "L/m²/h");
+        c.Step("Osmotic pressure", "Osmotic pressure = average of feed and reject TDS × osmotic coefficient",
+            $"average of {c.N("FeedTdsMgL")} and {c.N("RejectTdsMgL")} mg/L × osmotic coefficient", "OsmoticPressureBar", "bar");
+        c.Step("Feed pressure", "Feed pressure = osmotic pressure + net driving pressure",
+            $"{c.N("OsmoticPressureBar")} + {c.N("NetDrivingPressureBar")}", "FeedPressureBar", "bar");
+        c.Step("High-pressure pump power", "Power = feed per hour × feed pressure ÷ (conversion factor × pump efficiency)",
+            $"{c.N("FeedM3PerHour")} × {c.N("FeedPressureBar")} ÷ (conversion factor × {c.N("PumpEfficiency")})",
+            "HighPressurePumpKw", "kW");
+    }
+
+    private static void MultiEffectEvaporator(Ctx c)
+    {
+        c.In("Feed", "FlowM3PerDay", "m³/day");
+        c.In("Feed TDS", "FeedTdsMgL", "mg/L");
+        c.In("Concentrate fraction", "ConcentrateFraction", "");
+        c.In("Number of effects", "Effects", "no.");
+        c.In("Economy per effect", "EconomyPerEffect", "");
+        c.In("Operating hours", "OperatingHoursPerDay", "h/day");
+        c.In("Heat transfer coefficient", "UKwPerM2K", "kW/m²·K");
+        c.In("Temperature drop per effect", "DeltaTPerEffectK", "K");
+        c.In("Latent heat", "LatentHeatKjPerKg", "kJ/kg");
+
+        c.Step("Concentrate", "Concentrate = feed × concentrate fraction",
+            $"{c.N("FlowM3PerDay")} × {c.N("ConcentrateFraction")}", "ConcentrateM3PerDay", "m³/day");
+        c.Step("Concentrate TDS", "Concentrate TDS = feed TDS ÷ concentrate fraction",
+            $"{c.N("FeedTdsMgL")} ÷ {c.N("ConcentrateFraction")}", "ConcentrateTdsMgL", "mg/L");
+        c.Step("Water evaporated", "Evaporation = feed − concentrate",
+            $"{c.N("FlowM3PerDay")} − {c.N("ConcentrateM3PerDay")}", "EvaporationM3PerDay", "m³/day");
+        c.Step("Evaporation per hour", "Per hour = evaporation × kg per m³ ÷ operating hours",
+            $"{c.N("EvaporationM3PerDay")} × kg per m³ ÷ {c.N("OperatingHoursPerDay")}", "EvaporationKgPerHour", "kg/h");
+        c.Step("Steam economy", "Economy = number of effects × economy per effect",
+            $"{c.N("Effects")} × {c.N("EconomyPerEffect")}", "SteamEconomy", "kg water/kg steam");
+        c.Step("Steam consumption", "Steam = evaporation per hour ÷ steam economy",
+            $"{c.N("EvaporationKgPerHour")} ÷ {c.N("SteamEconomy")}", "SteamKgPerHour", "kg/h");
+        c.Step("Area per effect", "Area = (evaporation per hour ÷ effects ÷ seconds per hour) × latent heat ÷ (heat transfer coefficient × temperature drop)",
+            $"({c.N("EvaporationKgPerHour")} ÷ {c.N("Effects")} ÷ seconds per hour) × {c.N("LatentHeatKjPerKg")} ÷ ({c.N("UKwPerM2K")} × {c.N("DeltaTPerEffectK")})",
+            "AreaPerEffectM2", "m²");
+        c.Step("Total heat transfer area", "Total area = area per effect × number of effects",
+            $"{c.N("AreaPerEffectM2")} × {c.N("Effects")}", "HeatTransferAreaM2", "m²");
+        c.Step("Condenser duty", "Duty = (last-effect vapour ÷ seconds per hour) × latent heat",
+            $"({c.N("EvaporationKgPerHour")} ÷ {c.N("Effects")} ÷ seconds per hour) × {c.N("LatentHeatKjPerKg")}",
+            "CondenserDutyKw", "kW");
+        c.Step("Cooling water", "Cooling water = condenser duty ÷ (water heat capacity × cooling water temperature rise) × conversion",
+            $"{c.N("CondenserDutyKw")} ÷ (water heat capacity × temperature rise) × conversion", "CoolingWaterM3PerHour", "m³/h");
     }
 
     private static void Equalization(Ctx c)
