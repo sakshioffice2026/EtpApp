@@ -71,8 +71,10 @@ public class ProposalRepository : GenericRepository<Proposal>, IProposalReposito
 
     public async Task<int> GetNextVersionNoAsync(long projectId, CancellationToken cancellationToken = default)
     {
+        var proposalNo = await GenerateProposalNoAsync(projectId, cancellationToken);
+
         var latest = await DbSet
-            .Where(x => x.ProjectId == projectId)
+            .Where(x => x.ProposalNo == proposalNo)
             .MaxAsync(x => (int?)x.VersionNo, cancellationToken);
 
         return (latest ?? 0) + 1;

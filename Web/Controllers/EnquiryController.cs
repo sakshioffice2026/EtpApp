@@ -156,8 +156,16 @@ public class EnquiryController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateProposal(long id, CancellationToken cancellationToken)
     {
-        var proposal = await _proposals.CreateFromEnquiryAsync(id, cancellationToken);
-        return RedirectToAction("Details", "Proposal", new { id = proposal.Id });
+        try
+        {
+            var proposal = await _proposals.CreateFromEnquiryAsync(id, cancellationToken);
+            return RedirectToAction("Details", "Proposal", new { id = proposal.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 
     [HttpPost]

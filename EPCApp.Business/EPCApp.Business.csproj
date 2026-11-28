@@ -14,4 +14,8 @@
     <ProjectReference Include="..\EPCApp.Model\EPCApp.Model.csproj" />
     <ProjectReference Include="..\EPCApp.Utilities\EPCApp.Utilities.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Explain\" />
+  </ItemGroup>
 </Project>

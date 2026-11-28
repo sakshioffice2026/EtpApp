@@ -39,7 +39,15 @@ public class ProposalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Recalculate(long id, CancellationToken cancellationToken)
     {
-        await _proposals.RecalculateAsync(id, cancellationToken);
+        try
+        {
+            await _proposals.RecalculateAsync(id, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+        }
+
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -55,8 +63,16 @@ public class ProposalController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Accept(long id, string? remarks, CancellationToken cancellationToken)
     {
-        var projectId = await _proposals.AcceptAsync(id, remarks, cancellationToken);
-        return RedirectToAction("Details", "Project", new { id = projectId });
+        try
+        {
+            var projectId = await _proposals.AcceptAsync(id, remarks, cancellationToken);
+            return RedirectToAction("Details", "Project", new { id = projectId });
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 
     [HttpPost]

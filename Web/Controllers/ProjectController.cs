@@ -1,4 +1,4 @@
-﻿using EPCApp.Business.Contracts;
+using EPCApp.Business.Contracts;
 using EPCApp.Database.Enums;
 using EPCApp.Model.DTOs;
 using EPCApp.Model.ViewModel;
@@ -48,6 +48,9 @@ public class ProjectController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(ProjectViewModel model, CancellationToken cancellationToken)
     {
+        ModelState.Remove(nameof(ProjectViewModel.PlantTypeName));
+        ModelState.Remove(nameof(ProjectViewModel.IndustryTypeName));
+
         if (!ModelState.IsValid)
         {
             LoadLookups();
@@ -66,7 +69,11 @@ public class ProjectController : Controller
             Remarks = model.Remarks
         }, cancellationToken);
 
-        return RedirectToAction(nameof(Details), new { id = created.Id });
+        var intakeController = created.PlantType == (int)PlantType.Stp ? "Stp"
+            : created.PlantType == (int)PlantType.Zld ? "Zld"
+            : "Etp";
+
+        return RedirectToAction("Intake", intakeController, new { projectId = created.Id });
     }
 
     [HttpGet]
